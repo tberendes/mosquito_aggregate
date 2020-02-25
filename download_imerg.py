@@ -121,7 +121,7 @@ def load_json(bucket, key):
     key_split = key.split('/')
     download_fn=key_split[len(key_split) - 1]
     file = "/tmp/" + download_fn
-    s3.Bucket(data_bucket).download_file(key, file)
+    s3.Bucket(bucket).download_file(key, file)
 
     try:
         with open(file) as f:

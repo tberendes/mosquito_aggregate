@@ -1,12 +1,6 @@
 import string
-import sys
 import json
 import random
-
-import urllib3
-import certifi
-import requests
-from time import sleep
 import boto3 as boto3
 
 data_bucket = "mosquito-data"

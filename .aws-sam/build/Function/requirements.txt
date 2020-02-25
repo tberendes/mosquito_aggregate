@@ -1,6 +1,0 @@
-netCDF4
-matplotlib
-boto3
-certifi
-requests
-urllib3
