@@ -8,6 +8,9 @@ import requests
 from time import sleep
 import boto3 as boto3
 
+from  mosquito_util import load_json_from_s3
+from  mosquito_util import update_status_on_s3
+
 data_bucket = "mosquito-data"
 
 auth = ('mosquito2019', 'Malafr#1')
@@ -15,6 +18,7 @@ auth = ('mosquito2019', 'Malafr#1')
 s3 = boto3.resource(
     's3')
 
+test_count = 0
 # Create a urllib PoolManager instance to make requests.
 http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
 #http = urllib3.PoolManager()
@@ -36,7 +40,22 @@ def get_http_data(request):
         sys.exit(1)
     return response
 
-def download_imerg(subset_request):
+def update_status_test(bucket,request_id, type, status, message):
+    global test_count
+    statusJson = {"request_id": request_id, "type": type, "status": status, "message": message}
+    with open("/tmp/" + request_id + "_"+ type +".json", 'w') as status_file:
+        json.dump(statusJson, status_file)
+    #        json.dump(districtPrecipStats, json_file)
+    status_file.close()
+
+    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
+                                       "status/" + request_id + "_" + type +".json")
+
+    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
+                                       "status/" + request_id + "_" + type + str(test_count) +".json")
+    test_count = test_count + 1
+
+def download_imerg(subset_request, request_id):
 
     # Define the parameters for the data subset
     download_results = []
@@ -46,6 +65,7 @@ def download_imerg(subset_request):
     myJobId = response['result']['jobId']
     print('Job ID: ' + myJobId)
     print('Job status: ' + response['result']['Status'])
+    update_status_test(s3.Bucket(data_bucket),request_id, "download", "working", "initiated GES DISC order...")
 
     # Construct JSON WSP request for API method: GetStatus
     status_request = {
@@ -62,25 +82,30 @@ def download_imerg(subset_request):
         percent = response['result']['PercentCompleted']
         print('Job status: %s (%d%c complete)' % (status, percent, '%'))
     if response['result']['Status'] == 'Succeeded':
+        update_status_test(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC Job Finished.")
         print('Job Finished:  %s' % response['result']['message'])
     else:
     #    print('Job Failed: %s' % response['fault']['code'])
         print('Job Failed: %s' % response['result']['message'])
+        update_status_test(s3.Bucket(data_bucket),request_id, "download", "failed", "GES DISC Job failed: " + response['result']['message'])
+        update_status_test(s3.Bucket(data_bucket),request_id, "final", "failed", "GES DISC Job failed: " + response['result']['message'])
         sys.exit(1)
 
     # Retrieve a plain-text list of results in a single shot using the saved JobID
-    result = requests.get('https://disc.gsfc.nasa.gov/api/jobs/results/' + myJobId)
     try:
+        result = requests.get('https://disc.gsfc.nasa.gov/api/jobs/results/' + myJobId)
         result.raise_for_status()
         print(result.text)
     #    urls = result.text.split('\n')
         urls = result.text.splitlines()
-        for i in urls: print('%s' % i)
+#        for i in urls: print('%s' % i)
     except:
         print('Request returned error code %d' % result.status_code)
-
-    # Use the requests library to submit the HTTP_Services URLs and write out the results.
-    print('\nHTTP_services output:')
+        update_status_test(s3.Bucket(data_bucket),request_id, "download", "failed", "GES DISC retrieve results list failed: " + result.status_code)
+        update_status_test(s3.Bucket(data_bucket),request_id, "final", "failed", "GES DISC retrieve results list failed: " + result.status_code)
+        sys.exit(1)
+    # count the valild files
+    filelist = []
     for item in urls:
         outfn = item.split('/')
         if len(outfn) <= 0:
@@ -89,29 +114,47 @@ def download_imerg(subset_request):
         outfn = outfn[len(outfn) - 1].split('?')[0]
         # skip pdf documentation files staged automatically by request
         if not outfn.endswith('.pdf'):
-            download_results.append("imerg/"+outfn)
-            print('outfile %s ' % outfn)
-            URL = item
-            print("item " + item)
-            s=requests.Session()
-            s.auth = auth
-            r1 = s.request('get', URL)
-
-            result = s.get(r1.url)
-            try:
-                result.raise_for_status()
-                tmpfn = '/tmp/' + outfn
-                f = open(tmpfn, 'wb')
-                f.write(result.content)
-                f.close()
-                print(outfn)
-
-                s3.Bucket(data_bucket).upload_file(tmpfn, "imerg/"+outfn)
-            except:
-                print('Error! Status code is %d for this URL:\n%s' % (result.status.code, URL))
-                print('Help for downloading data is at https://disc.gsfc.nasa.gov/data-access')
+            entry = {"outfn": outfn, "url":item}
+            filelist.append(entry)
         else:
             print('skipping documentation file '+outfn)
+
+    numfiles = len(filelist)
+
+    # Use the requests library to submit the HTTP_Services URLs and write out the results.
+    count = 0
+    for entry in filelist:
+        URL = entry["url"]
+        outfn = entry["outfn"]
+        download_results.append("imerg/"+outfn)
+        print('outfile %s ' % outfn)
+        print("item " + item)
+        s=requests.Session()
+        s.auth = auth
+        r1 = s.request('get', URL)
+
+        result = s.get(r1.url)
+        try:
+            result.raise_for_status()
+            tmpfn = '/tmp/' + outfn
+            f = open(tmpfn, 'wb')
+            f.write(result.content)
+            f.close()
+            print(outfn)
+
+            s3.Bucket(data_bucket).upload_file(tmpfn, "imerg/"+outfn)
+            count = count + 1
+            update_status_test(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC downloaded file " + str(count)
+                          + " of " + str(numfiles))
+        except:
+            update_status_test(s3.Bucket(data_bucket),request_id, "download", "failed", "GES DISC retrieve results failed on file " + str(count)
+                          + " of " + str(numfiles) + ": " + result.status_code)
+            update_status_test(s3.Bucket(data_bucket),request_id, "final", "failed", "GES DISC retrieve results failed on file " + str(count)
+                          + " of " + str(numfiles) + ": " +  result.status_code)
+            print('Error! Status code is %d for this URL:\n%s' % (result.status.code, URL))
+            print('Help for downloading data is at https://disc.gsfc.nasa.gov/data-access')
+            sys.exit(1)
+
     return download_results
 
 def load_json(bucket, key):
@@ -129,7 +172,7 @@ def load_json(bucket, key):
         f.close()
     except IOError:
         print("Could not read file:" + file)
-        jsonData = {"message": "Error reading json file"}
+        jsonData = {"message": "error"}
 
     return jsonData
 
@@ -139,12 +182,18 @@ def lambda_handler(event, context):
     # use "Late" product
     product = 'GPM_3IMERGDL_06'
     varName = 'HQprecipitation'
+    global test_count
+    test_count = 0
     for record in event['Records']:
         bucket = record['s3']['bucket']['name']
         key = unquote_plus(record['s3']['object']['key'])
 
-        input_json = load_json(bucket, key)
-
+#        input_json = load_json(bucket, key)
+        input_json = load_json_from_s3(s3.Bucket(bucket), key)
+        if "message" in input_json and input_json["message"] == "error":
+            update_status_test(s3.Bucket(data_bucket),request_id, "download", "failed", "load_json_from_s3 could not load " + key)
+            update_status_test(s3.Bucket(data_bucket),request_id, "final", "failed",  "load_json_from_s3 could not load " + key)
+            sys.exit(1)
 
         dataset = input_json["dataset"]
         org_unit = input_json["org_unit"]
@@ -182,7 +231,7 @@ def lambda_handler(event, context):
             }
         }
 
-        download_results=download_imerg(subset_request)
+        download_results=download_imerg(subset_request, request_id)
 
         # need error check on download_imerg
 
@@ -201,3 +250,5 @@ def lambda_handler(event, context):
 
         s3.Bucket(data_bucket).upload_file("/tmp/" + request_id + "_aggregate.json",
                                            aggregate_pathname + request_id + "_aggregate.json")
+
+    update_status_test(s3.Bucket(data_bucket),request_id, "download", "success", "All requested files successfully downloaded ")

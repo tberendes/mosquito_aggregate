@@ -26,6 +26,8 @@ from urllib.parse import unquote_plus
 import datetime
 from datetime import date
 from datetime import timedelta
+from  mosquito_util import load_json_from_s3
+
 
 s3 = boto3.resource(
     's3')
@@ -183,7 +185,7 @@ def load_json(bucket, key):
         f.close()
     except IOError:
         print("Could not read file:" + file)
-        jsonData = {"message": "Error reading json file"}
+        jsonData = {"message": "error"}
 
     return jsonData
 
@@ -198,7 +200,8 @@ def lambda_handler(event, context):
         bucket = record['s3']['bucket']['name']
         key = unquote_plus(record['s3']['object']['key'])
 
-        input_json = load_json(bucket, key)
+#        input_json = load_json(bucket, key)
+        input_json = load_json_from_s3(s3.Bucket(bucket), key)
 
         request_id = input_json['request_id']
         data_element_id = input_json['data_element_id']
@@ -209,7 +212,8 @@ def lambda_handler(event, context):
         files = input_json['files']
         variable = input_json['variable']
 
-        geometryJson = load_json(bucket, "requests/geometry/" + request_id +"_geometry.json")
+#        geometryJson = load_json(bucket, "requests/geometry/" + request_id +"_geometry.json")
+        geometryJson = load_json_from_s3(s3.Bucket(bucket), "requests/geometry/" + request_id +"_geometry.json")
 
         for file in files:
             jsonRecords = process_file(geometryJson, data_element_id, statType, variable, s3bucket, file)

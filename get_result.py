@@ -3,30 +3,12 @@ import json
 import random
 
 import boto3 as boto3
+from  mosquito_util import load_json_from_s3
 
 data_bucket = "mosquito-data"
 
 s3 = boto3.resource(
     's3')
-
-def load_json(bucket, key):
-
-    print("event key " + key)
-    # strip off directory from key for temp file
-    key_split = key.split('/')
-    download_fn=key_split[len(key_split) - 1]
-    file = "/tmp/" + download_fn
-    s3.Bucket(bucket).download_file(key, file)
-
-    try:
-        with open(file) as f:
-            jsonData = json.load(f)
-        f.close()
-    except IOError:
-        print("Could not read file:" + file)
-        jsonData = {"message": "Error reading json file"}
-
-    return jsonData
 
 def lambda_handler(event, context):
 
@@ -46,8 +28,9 @@ def lambda_handler(event, context):
         if result_file.key == result_filename:
             found=True
     if found:
-        result_json = {"status": "success"}
-        result_json.append(load_json(data_bucket, result_filename))
+#        result_file_json = load_json(data_bucket, result_filename)
+        result_file_json = load_json_from_s3(my_bucket, result_filename)
+        result_json = {"status": "success", "result":result_file_json}
     else:
         result_json = {"status": "No results"}
 
