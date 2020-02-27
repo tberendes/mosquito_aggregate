@@ -15,6 +15,7 @@
 
 # --Do all the necessary imports
 import statistics
+import sys
 
 import boto3 as boto3
 from netCDF4 import Dataset as NetCDFFile
@@ -26,11 +27,30 @@ from urllib.parse import unquote_plus
 import datetime
 from datetime import date
 from datetime import timedelta
-from  mosquito_util import load_json_from_s3
-
+from mosquito_util import load_json_from_s3, update_status_on_s3
 
 s3 = boto3.resource(
     's3')
+
+test_count = 20
+
+def update_status_test(bucket,request_id, type, status, message):
+    global test_count
+    statusJson = {"request_id": request_id, "type": type, "status": status, "message": message}
+    with open("/tmp/" + request_id + "_"+ type +".json", 'w') as status_file:
+        json.dump(statusJson, status_file)
+    #        json.dump(districtPrecipStats, json_file)
+    status_file.close()
+
+#    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
+#                                       "status/" + request_id + "_" + type +".json")
+#    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
+#                                       "status/" + request_id + "_" + type + str(test_count) +".json")
+    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
+                                       "status/" + request_id + ".json")
+    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
+                                       "status/" + request_id + str(test_count) +".json")
+    test_count = test_count + 1
 
 def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip):
     #    print('calc stats')
@@ -196,12 +216,19 @@ def lambda_handler(event, context):
     # reformat new json structure
     outputJson = {'dataValues' : []}
 
+    global test_count
+    test_count = 20
+
     for record in event['Records']:
         bucket = record['s3']['bucket']['name']
         key = unquote_plus(record['s3']['object']['key'])
 
 #        input_json = load_json(bucket, key)
         input_json = load_json_from_s3(s3.Bucket(bucket), key)
+        if "message" in input_json and input_json["message"] == "error":
+            update_status_on_s3(s3.Bucket(bucket),request_id, "aggregate", "failed",
+                               "aggregate_imerge could not load " + key)
+            sys.exit(1)
 
         request_id = input_json['request_id']
         data_element_id = input_json['data_element_id']
@@ -212,16 +239,29 @@ def lambda_handler(event, context):
         files = input_json['files']
         variable = input_json['variable']
 
+        update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "working", "loading geometry file...")
 #        geometryJson = load_json(bucket, "requests/geometry/" + request_id +"_geometry.json")
         geometryJson = load_json_from_s3(s3.Bucket(bucket), "requests/geometry/" + request_id +"_geometry.json")
+        if "message" in geometryJson and geometryJson["message"] == "error":
+            update_status_on_s3(s3.Bucket(bucket),request_id, "aggregate", "failed",
+                               "aggregate_imerge could not load geometry file " +
+                               "requests/geometry/" + request_id +"_geometry.json")
+            sys.exit(1)
 
+        count = 1
+        num_files = len(files)
         for file in files:
+            update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "working", "aggregating file "
+                               + str(count) +" of " + str(num_files))
             jsonRecords = process_file(geometryJson, data_element_id, statType, variable, s3bucket, file)
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
-
+            count = count + 1
         with open("/tmp/" +request_id+"_result.json", 'w') as result_file:
             json.dump(outputJson, result_file)
         result_file.close()
 
         s3.Bucket(bucket).upload_file("/tmp/" + request_id+"_result.json", "results/" +request_id+".json")
+
+        update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "success", "Successfully processed "
+                           + str(num_files) + " files")

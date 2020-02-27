@@ -8,8 +8,7 @@ import requests
 from time import sleep
 import boto3 as boto3
 
-from  mosquito_util import load_json_from_s3
-from  mosquito_util import update_status_on_s3
+from  mosquito_util import load_json_from_s3, update_status_on_s3
 
 data_bucket = "mosquito-data"
 
@@ -48,11 +47,14 @@ def update_status_test(bucket,request_id, type, status, message):
     #        json.dump(districtPrecipStats, json_file)
     status_file.close()
 
+#    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
+#                                       "status/" + request_id + "_" + type +".json")
+#    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
+#                                       "status/" + request_id + "_" + type + str(test_count) +".json")
     bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
-                                       "status/" + request_id + "_" + type +".json")
-
+                                       "status/" + request_id + ".json")
     bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
-                                       "status/" + request_id + "_" + type + str(test_count) +".json")
+                                       "status/" + request_id + str(test_count) +".json")
     test_count = test_count + 1
 
 def download_imerg(subset_request, request_id):
@@ -65,7 +67,7 @@ def download_imerg(subset_request, request_id):
     myJobId = response['result']['jobId']
     print('Job ID: ' + myJobId)
     print('Job status: ' + response['result']['Status'])
-    update_status_test(s3.Bucket(data_bucket),request_id, "download", "working", "initiated GES DISC order...")
+    update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "working", "initiated GES DISC order...")
 
     # Construct JSON WSP request for API method: GetStatus
     status_request = {
@@ -82,13 +84,13 @@ def download_imerg(subset_request, request_id):
         percent = response['result']['PercentCompleted']
         print('Job status: %s (%d%c complete)' % (status, percent, '%'))
     if response['result']['Status'] == 'Succeeded':
-        update_status_test(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC Job Finished.")
+        update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC Job Finished.")
         print('Job Finished:  %s' % response['result']['message'])
     else:
     #    print('Job Failed: %s' % response['fault']['code'])
         print('Job Failed: %s' % response['result']['message'])
-        update_status_test(s3.Bucket(data_bucket),request_id, "download", "failed", "GES DISC Job failed: " + response['result']['message'])
-        update_status_test(s3.Bucket(data_bucket),request_id, "final", "failed", "GES DISC Job failed: " + response['result']['message'])
+        update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
+                           "GES DISC Job failed: " + response['result']['message'])
         sys.exit(1)
 
     # Retrieve a plain-text list of results in a single shot using the saved JobID
@@ -101,8 +103,8 @@ def download_imerg(subset_request, request_id):
 #        for i in urls: print('%s' % i)
     except:
         print('Request returned error code %d' % result.status_code)
-        update_status_test(s3.Bucket(data_bucket),request_id, "download", "failed", "GES DISC retrieve results list failed: " + result.status_code)
-        update_status_test(s3.Bucket(data_bucket),request_id, "final", "failed", "GES DISC retrieve results list failed: " + result.status_code)
+        update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
+                           "GES DISC retrieve results list failed: " + result.status_code)
         sys.exit(1)
     # count the valild files
     filelist = []
@@ -144,13 +146,13 @@ def download_imerg(subset_request, request_id):
 
             s3.Bucket(data_bucket).upload_file(tmpfn, "imerg/"+outfn)
             count = count + 1
-            update_status_test(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC downloaded file " + str(count)
+            update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC downloaded file "
+                               + str(count)
                           + " of " + str(numfiles))
         except:
-            update_status_test(s3.Bucket(data_bucket),request_id, "download", "failed", "GES DISC retrieve results failed on file " + str(count)
-                          + " of " + str(numfiles) + ": " + result.status_code)
-            update_status_test(s3.Bucket(data_bucket),request_id, "final", "failed", "GES DISC retrieve results failed on file " + str(count)
-                          + " of " + str(numfiles) + ": " +  result.status_code)
+            update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
+                               "GES DISC retrieve results failed on file " + str(count)
+                               + " of " + str(numfiles) + ": " + result.status_code)
             print('Error! Status code is %d for this URL:\n%s' % (result.status.code, URL))
             print('Help for downloading data is at https://disc.gsfc.nasa.gov/data-access')
             sys.exit(1)
@@ -191,8 +193,8 @@ def lambda_handler(event, context):
 #        input_json = load_json(bucket, key)
         input_json = load_json_from_s3(s3.Bucket(bucket), key)
         if "message" in input_json and input_json["message"] == "error":
-            update_status_test(s3.Bucket(data_bucket),request_id, "download", "failed", "load_json_from_s3 could not load " + key)
-            update_status_test(s3.Bucket(data_bucket),request_id, "final", "failed",  "load_json_from_s3 could not load " + key)
+            update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
+                               "load_json_from_s3 could not load " + key)
             sys.exit(1)
 
         dataset = input_json["dataset"]
@@ -251,4 +253,5 @@ def lambda_handler(event, context):
         s3.Bucket(data_bucket).upload_file("/tmp/" + request_id + "_aggregate.json",
                                            aggregate_pathname + request_id + "_aggregate.json")
 
-    update_status_test(s3.Bucket(data_bucket),request_id, "download", "success", "All requested files successfully downloaded ")
+    update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "complete",
+                       "All requested files successfully downloaded ")

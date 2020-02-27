@@ -106,7 +106,7 @@ def lambda_handler(event, context):
 #    return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
 #                body=json.dumps({'files': download_results}), isBase64Encoded='false')
     return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                body=json.dumps({'message': request_id}), isBase64Encoded='false')
+                body=json.dumps({'request_id': request_id}), isBase64Encoded='false')
 
 
 #return dict(statusCode='200', body={'files': download_results}, isBase64Encoded='false')
