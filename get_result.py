@@ -18,6 +18,10 @@ def lambda_handler(event, context):
         event = json.loads(event['body'])
 
     request_id = event['request_id']
+    status_only = False
+    if "mode" in event and event['mode'] == "status":
+        status_only = True
+
     result_filename = "results/" + request_id + ".json"
 
     my_bucket = s3.Bucket(data_bucket)
@@ -29,12 +33,15 @@ def lambda_handler(event, context):
         if status["status"] == "failed":
             result_json = {"status": "failed", "message": status["type"] + ":" + status["message"]}
         elif status["status"] == "success":
-            result_file_json = load_json_from_s3(my_bucket, result_filename)
-            if "message" in result_file_json and result_file_json["message"] == "error":
-                result_json = {"status": "failed", "message": status["type"] + ": cannot read result file " +
-                                                              result_filename}
+            if status_only:
+                result_json = {"status": "success"}
             else:
-                result_json = {"status": "success", "result":result_file_json}
+                result_file_json = load_json_from_s3(my_bucket, result_filename)
+                if "message" in result_file_json and result_file_json["message"] == "error":
+                    result_json = {"status": "failed", "message": status["type"] + ": cannot read result file " +
+                                                                  result_filename}
+                else:
+                    result_json = {"status": "success", "result":result_file_json}
         else:
             result_json = {"status": status["status"], "message": status["type"] + ": " +status["message"]}
 
