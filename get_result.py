@@ -41,7 +41,8 @@ def lambda_handler(event, context):
                     result_json = {"status": "failed", "message": status["type"] + ": cannot read result file " +
                                                                   result_filename}
                 else:
-                    result_json = {"status": "success", "result":result_file_json}
+                    result_json = {"status": "success", "message": status["type"] + ": " +status["message"],
+                                   "result":result_file_json}
         else:
             result_json = {"status": status["status"], "message": status["type"] + ": " +status["message"]}
 
