@@ -15,11 +15,14 @@ def lambda_handler(event, context):
     print("event ", event)
 
     if 'body' in event:
-        event = json.loads(event['body'])
-    else:
-        return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
-                    body=json.dumps({'message': "missing request ID"}), isBase64Encoded='false')
+        try:
+            event = json.loads(event['body'])
+        except (TypeError, ValueError):
+            return dict(statusCode='200',
+                        headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
+                                 'Access-Control-Allow-Headers': 'Content-Type',
+                                 'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
+                        body=json.dumps({'message': "missing json parameters"}), isBase64Encoded='false')
 
     request_id = event['request_id']
     status_only = False
@@ -64,7 +67,8 @@ def lambda_handler(event, context):
     #         result_json = {"status": status}
 
     return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
+                                           'Access-Control-Allow-Headers': 'Content-Type',
+                                           'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
                 body=json.dumps(result_json), isBase64Encoded='false')
 
 
