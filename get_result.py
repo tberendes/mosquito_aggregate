@@ -16,6 +16,10 @@ def lambda_handler(event, context):
 
     if 'body' in event:
         event = json.loads(event['body'])
+    else:
+        return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
+                    body=json.dumps({'message': "missing request ID"}), isBase64Encoded='false')
 
     request_id = event['request_id']
     status_only = False
@@ -59,7 +63,8 @@ def lambda_handler(event, context):
     #         status = load_json_from_s3(my_bucket, "status/" + request_id + ".json")
     #         result_json = {"status": status}
 
-    return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+    return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
                 body=json.dumps(result_json), isBase64Encoded='false')
 
 
