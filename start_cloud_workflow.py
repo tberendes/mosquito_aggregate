@@ -37,8 +37,8 @@ def lambda_handler(event, context):
         except (TypeError, ValueError):
             return dict(statusCode='200',
                         headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-                                 'Access-Control-Allow-Headers': 'Content-Type',
-                                 'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
+                                 'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                                 'Access-Control-Allow-Methods': 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'},
                         body=json.dumps({'message': "missing json parameters"}), isBase64Encoded='false')
 
     #    "dataset": "precipitation", "org_unit": "district", "agg_period": "daily", "start_date": "1998-08-21T17:38:27Z",
@@ -96,8 +96,8 @@ def lambda_handler(event, context):
         #set up download_imerg data
     else:
         return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-                                               'Access-Control-Allow-Headers': 'Content-Type',
-                                               'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
+                                               'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                                               'Access-Control-Allow-Methods': 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'},
                     body=json.dumps({'message': "illegal dataset: " + dataset}), isBase64Encoded='false')
 
     with open("/tmp/" +request_id+".json", 'w') as json_file:
@@ -125,8 +125,8 @@ def lambda_handler(event, context):
 #    return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
 #                body=json.dumps({'files': download_results}), isBase64Encoded='false')
     return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-                                           'Access-Control-Allow-Headers': 'Content-Type',
-                                           'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
+                                           'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                                           'Access-Control-Allow-Methods': 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'},
                 body=json.dumps({'request_id': request_id}), isBase64Encoded='false')
 
 

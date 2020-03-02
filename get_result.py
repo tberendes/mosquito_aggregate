@@ -20,8 +20,8 @@ def lambda_handler(event, context):
         except (TypeError, ValueError):
             return dict(statusCode='200',
                         headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-                                 'Access-Control-Allow-Headers': 'Content-Type',
-                                 'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
+                                 'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                                 'Access-Control-Allow-Methods': 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'},
                         body=json.dumps({'message': "missing json parameters"}), isBase64Encoded='false')
 
     request_id = event['request_id']
@@ -67,8 +67,8 @@ def lambda_handler(event, context):
     #         result_json = {"status": status}
 
     return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-                                           'Access-Control-Allow-Headers': 'Content-Type',
-                                           'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'},
+                                           'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                                           'Access-Control-Allow-Methods': 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'},
                 body=json.dumps(result_json), isBase64Encoded='false')
 
 

@@ -175,7 +175,14 @@
       <option name="project" value="LOCAL" />
       <updated>1583092175016</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Updated final status to include message">
+      <created>1583095029402</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1583095029402</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -225,12 +232,12 @@
     </state>
     <state x="719" y="234" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog/67.27.1853.1068@67.27.1853.1068" timestamp="1581714271840" />
     <state x="719" y="206" width="624" height="544" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog/67.27.1853.923@67.27.1853.923" timestamp="1582745781795" />
-    <state x="608" y="38" width="782" height="912" key="CommitChangelistDialog2" timestamp="1583092174137">
+    <state x="608" y="38" width="782" height="912" key="CommitChangelistDialog2" timestamp="1583095028822">
       <screen x="67" y="27" width="1853" height="923" />
     </state>
     <state x="608" y="94" key="CommitChangelistDialog2/67.27.1853.1053@67.27.1853.1053" timestamp="1582922937303" />
     <state x="608" y="95" width="777" height="807" key="CommitChangelistDialog2/67.27.1853.1068@67.27.1853.1068" timestamp="1582840783482" />
-    <state x="608" y="38" width="782" height="912" key="CommitChangelistDialog2/67.27.1853.923@67.27.1853.923" timestamp="1583092174137" />
+    <state x="608" y="38" width="782" height="912" key="CommitChangelistDialog2/67.27.1853.923@67.27.1853.923" timestamp="1583095028822" />
     <state x="674" y="236" width="447" height="513" key="FileChooserDialogImpl" timestamp="1582729493265">
       <screen x="67" y="27" width="1853" height="1068" />
     </state>
@@ -271,12 +278,12 @@
       <screen x="67" y="27" width="1853" height="1068" />
     </state>
     <state x="595" y="186" key="SettingsEditor/67.27.1853.1068@67.27.1853.1068" timestamp="1582756028901" />
-    <state x="557" y="209" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1583092177613">
+    <state x="557" y="209" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1583095031990">
       <screen x="67" y="27" width="1853" height="923" />
     </state>
     <state x="557" y="235" key="Vcs.Push.Dialog.v2/67.27.1853.1053@67.27.1853.1053" timestamp="1582922942467" />
     <state x="557" y="238" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.1068@67.27.1853.1068" timestamp="1582831454830" />
-    <state x="557" y="209" key="Vcs.Push.Dialog.v2/67.27.1853.923@67.27.1853.923" timestamp="1583092177613" />
+    <state x="557" y="209" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.923@67.27.1853.923" timestamp="1583095031990" />
     <state x="883" y="378" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1582744764418">
       <screen x="67" y="27" width="1853" height="923" />
     </state>
