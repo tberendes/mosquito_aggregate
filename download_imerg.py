@@ -32,6 +32,7 @@ def get_http_data(request):
     data = json.dumps(request)
     r = http.request('POST', url, body=data, headers=hdrs)
     response = json.loads(r.data)
+    print('request ', request)
     print('response ', response)
     # Check for errors
     if response['type'] == 'jsonwsp/fault':
@@ -76,11 +77,24 @@ def download_imerg(subset_request, request_id):
         'type': 'jsonwsp/request',
         'args': {'jobId': myJobId}
     }
+    status_change_count=0
+    previous_status = ''
     # Check on the job status after a brief nap
     while response['result']['Status'] in ['Accepted', 'Running']:
         sleep(2)
         response = get_http_data(status_request)
         status = response['result']['Status']
+        if status == previous_status:
+            status_change_count = status_change_count + 1
+            previous_status = status
+        else:
+            status_change_count = 0
+            previous_status = status
+        if status_change_count > 30:
+            print('Job status has not changed in 60 seconds, probably hung on GES DISC server')
+            update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
+                           "Connection problem with GES DISC, order failed ")
+            sys.exit(1)
         percent = response['result']['PercentCompleted']
         print('Job status: %s (%d%c complete)' % (status, percent, '%'))
     if response['result']['Status'] == 'Succeeded':
@@ -90,7 +104,7 @@ def download_imerg(subset_request, request_id):
     #    print('Job Failed: %s' % response['fault']['code'])
         print('Job Failed: %s' % response['result']['message'])
         update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
-                           "GES DISC Job failed: " + response['result']['message'])
+                           "GES DISC order failed: " + response['result']['message'])
         sys.exit(1)
 
     # Retrieve a plain-text list of results in a single shot using the saved JobID
@@ -133,10 +147,10 @@ def download_imerg(subset_request, request_id):
         print("item " + item)
         s=requests.Session()
         s.auth = auth
-        r1 = s.request('get', URL)
 
-        result = s.get(r1.url)
         try:
+            r1 = s.request('get', URL)
+            result = s.get(r1.url)
             result.raise_for_status()
             tmpfn = '/tmp/' + outfn
             f = open(tmpfn, 'wb')
@@ -217,6 +231,22 @@ def lambda_handler(event, context):
 
     #    varName = event['variable']
         # Construct JSON WSP request for API method: subset
+#        subset_request = {
+#            'methodname': 'subset',
+#            'type': 'jsonwsp/request',
+#            'version': '1.0',
+#            'args': {
+#                'role': 'subset',
+#                'start': start_date,
+#                'end': end_date,
+#                'box': [minlon, minlat, maxlon, maxlat],
+#                'extent': [minlon, minlat, maxlon, maxlat],
+#                'data': [{'datasetId': product,
+#                          'variable': varName
+#                          }]
+#            }
+#        }
+
         subset_request = {
             'methodname': 'subset',
             'type': 'jsonwsp/request',
@@ -226,7 +256,7 @@ def lambda_handler(event, context):
                 'start': start_date,
                 'end': end_date,
                 'box': [minlon, minlat, maxlon, maxlat],
-                'extent': [minlon, minlat, maxlon, maxlat],
+                'crop': True,
                 'data': [{'datasetId': product,
                           'variable': varName
                           }]

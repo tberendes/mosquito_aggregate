@@ -175,7 +175,7 @@ def process_file(geometry, dataElement, statType, precipVar, s3_bucket, key):
 #        print("mean precip ", districtPrecipStats[dist_id]['mean'])
 #        print("median precip ", districtPrecipStats[dist_id]['median'])
 
-    print("aggregate_imerg done")
+#    print("finished file " + key)
     nc.close()
 
     # reformat new json structure
