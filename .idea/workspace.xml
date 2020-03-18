@@ -294,13 +294,14 @@
       <screen x="67" y="27" width="1853" height="1068" />
     </state>
     <state x="595" y="186" key="SettingsEditor/67.27.1853.1068@67.27.1853.1068" timestamp="1582756028901" />
-    <state x="557" y="236" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1583182788165">
-      <screen x="67" y="27" width="1853" height="1062" />
+    <state x="557" y="210" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1584567690130">
+      <screen x="67" y="27" width="1853" height="929" />
     </state>
     <state x="557" y="235" key="Vcs.Push.Dialog.v2/67.27.1853.1053@67.27.1853.1053" timestamp="1582922942467" />
     <state x="557" y="236" key="Vcs.Push.Dialog.v2/67.27.1853.1062@67.27.1853.1062" timestamp="1583182788165" />
     <state x="557" y="238" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.1068@67.27.1853.1068" timestamp="1582831454830" />
     <state x="557" y="209" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.923@67.27.1853.923" timestamp="1583095031990" />
+    <state x="557" y="210" key="Vcs.Push.Dialog.v2/67.27.1853.929@67.27.1853.929" timestamp="1584567690130" />
     <state x="200" y="127" width="1419" height="645" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1583852435323">
       <screen x="67" y="27" width="1853" height="1062" />
     </state>
