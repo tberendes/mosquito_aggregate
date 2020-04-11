@@ -34,6 +34,13 @@ s3 = boto3.resource(
 
 test_count = 20
 
+#import PIL
+#from PIL import Image
+
+# creating a image object (new image object) with
+# RGB mode and size 200x200
+#im = PIL.Image.new(mode="RGB", size=(32, 32),color = (255, 255, 255))
+
 def update_status_test(bucket,request_id, type, status, message):
     global test_count
     statusJson = {"request_id": request_id, "type": type, "status": status, "message": message}
@@ -52,7 +59,7 @@ def update_status_test(bucket,request_id, type, status, message):
                                        "status/" + request_id + str(test_count) +".json")
     test_count = test_count + 1
 
-def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip):
+def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip,minlat,minlon,maxlat,maxlon):
     #    print('calc stats')
     #    districtPrecip={}
     for poly in polylist:
@@ -61,8 +68,12 @@ def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip):
         #        for ptLat,ptLon,val in lat,lon,precip:
         #        print("poly ", poly.get_label())
         for i in range(lon.shape[0]):
+            if lon[i]<minlon or lon[i]>maxlon:
+                continue
             #            print("i ",i)
             for j in range(lat.shape[0]):
+                if lat[j] < minlat or lat[j] > maxlat:
+                    continue
                 #                print("j ",j)
                 #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
                 path = mpltPath.Path(poly.xy)
@@ -73,8 +84,7 @@ def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip):
                         districtPrecip[poly.get_label()].append(float(precip[i][j]))
                     else:
                         districtPrecip[poly.get_label()].append(0.0)
-
-
+#                    im.putpixel((i,j),(255, 0, 0))
 #                    print("lat ", lat[j], " lon ", lon[i], " precip ", precip[i][j], " inside ", poly.get_label())
 
 def calcDistrictStats(districtPrecip, districtPrecipStats):
@@ -86,18 +96,36 @@ def calcDistrictStats(districtPrecip, districtPrecipStats):
             #            print('points ',districtPrecip[dist])
             mean = statistics.mean(districtPrecip[dist])
             median = statistics.median(districtPrecip[dist])
+            maxval = max(districtPrecip[dist])
+            minval = min(districtPrecip[dist])
         else:
             mean = 0.0
             median = 0.0
+            maxval = 0.0
+            minval = 0.0
         #        meadian_high = statistics.median_high(districtPrecip[dist])
         #        meadian_low = statistics.median_low(districtPrecip[dist])
         #        std_dev = statistics.stdev(districtPrecip[dist])
         #        variance = statistics.variance(districtPrecip[dist])
         districtPrecipStats[dist] = dict([
             ('mean', mean),
-            ('median', median)
+            ('median', median),
+            ('max', maxval),
+            ('min', minval),
+            ('count', len(districtPrecip[dist]))
         ])
 
+
+def find_maxmin_latlon(lat,lon,minlat,minlon,maxlat,maxlon):
+    if lat > maxlat:
+        maxlat = lat
+    if lat < minlat:
+        minlat = lat
+    if lon > maxlon:
+        maxlon = lon
+    if lon < minlon:
+        minlon = lon
+    return minlat,minlon,maxlat,maxlon
 
 def process_file(geometry, dataElement, statType, precipVar, s3_bucket, key):
 
@@ -150,32 +178,47 @@ def process_file(geometry, dataElement, statType, precipVar, s3_bucket, key):
             return poly
 
         distPoly = []
+
+        minlat = 90.0
+        maxlat = -90.0
+        minlon = 180.0
+        maxlon = -180.0
         if shape["type"] == "Polygon":
             for subregion in coords:
                 distPoly.append(handle_subregion(subregion))
+                for coord in subregion:
+                    minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon, maxlat, maxlon)
         elif shape["type"] == "MultiPolygon":
             for subregion in coords:
                 #            print("subregion")
                 for sub1 in subregion:
                     #                print("sub-subregion")
                     distPoly.append(handle_subregion(sub1))
+                    for coord in sub1:
+                        minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon,
+                                                                        maxlat, maxlon)
         else:
             print
             "Skipping", dist_id, \
             "because of unknown type", shape["type"]
         # compute statisics
-        accumPrecipByDistrict(distPoly, precip, lat, lon, districtPrecip)
+        accumPrecipByDistrict(distPoly, precip, lat, lon, districtPrecip,minlat,minlon,maxlat,maxlon)
         districtPolygons[dist_id] = distPoly
 
     calcDistrictStats(districtPrecip, districtPrecipStats)
     for district in districts:
        # name = district['properties']['name']
         dist_id = district['id']
-#        print("district ", dist_id)
+        name = district['name']
+#        print("district name ", name)
+#        print("district id", dist_id)
 #        print("mean precip ", districtPrecipStats[dist_id]['mean'])
 #        print("median precip ", districtPrecipStats[dist_id]['median'])
+#        print("max precip ", districtPrecipStats[dist_id]['max'])
+#        print("min precip ", districtPrecipStats[dist_id]['min'])
+#        print("count ", districtPrecipStats[dist_id]['count'])
 
-#    print("finished file " + key)
+    #    print("finished file " + key)
     nc.close()
 
     # reformat new json structure
@@ -211,8 +254,8 @@ def load_json(bucket, key):
 
 def lambda_handler(event, context):
 
-    #    statType='mean'
-    statType = 'median'
+    statType='mean'
+    #statType = 'median'
     # reformat new json structure
     outputJson = {'dataValues' : []}
 
@@ -265,3 +308,5 @@ def lambda_handler(event, context):
 
         update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "success", "Successfully processed "
                            + str(num_files) + " files")
+#        im.save('/tmp/sl_img.jpg', quality=95)
+#        s3.Bucket(bucket).upload_file("/tmp/sl_img.jpg", "test/" +"sl_img.jpg")
