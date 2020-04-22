@@ -2,9 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c25fb7d0-2edc-4dbf-811e-812bcf1be1a3" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/sample_payload_orig.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/aggregate_imerg.py" beforeDir="false" afterPath="$PROJECT_DIR$/aggregate_imerg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/download_imerg.py" beforeDir="false" afterPath="$PROJECT_DIR$/download_imerg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/sample_payload.json" beforeDir="false" afterPath="$PROJECT_DIR$/sample_payload.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/start_cloud_workflow.py" beforeDir="false" afterPath="$PROJECT_DIR$/start_cloud_workflow.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test_get_result.json" beforeDir="false" afterPath="$PROJECT_DIR$/test_get_result.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -33,19 +37,27 @@
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/test" />
-    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="configurable.group.build" />
+  </component>
+  <component name="PyConsoleOptionsProvider">
+    <option name="myPythonConsoleState">
+      <console-settings module-name="mosquito" is-module-sdk="true">
+        <option name="myUseModuleSdk" value="true" />
+        <option name="myModuleName" value="mosquito" />
+      </console-settings>
+    </option>
   </component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/test" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
     </key>
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/test" />
-      <recent name="$PROJECT_DIR$" />
-    </key>
   </component>
-  <component name="RunManager" selected="AWS Lambda.[Remote] start_cloud_workflow">
+  <component name="RunManager" selected="AWS Lambda.[Remote] get_result">
     <configuration name="aggregate_imerg" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="mosquito" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -90,8 +102,8 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="AWS Lambda.[Remote] start_cloud_workflow" />
         <item itemvalue="AWS Lambda.[Remote] get_result" />
+        <item itemvalue="AWS Lambda.[Remote] start_cloud_workflow" />
         <item itemvalue="Python.aggregate_imerg" />
       </list>
     </recent_temporary>
@@ -170,7 +182,14 @@
       <option name="project" value="LOCAL" />
       <updated>1583182786327</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Changed aggregation value to mean instead of median, made agg more efficient">
+      <created>1586568625546</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1586568625546</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -196,10 +215,6 @@
     <option name="LAST_COMMIT_MESSAGE" value="Changed aggregation value to mean instead of median, made agg more efficient" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="498" y="154" width="800" height="677" key="#Inspections" timestamp="1578429944781">
-      <screen x="67" y="27" width="1853" height="1068" />
-    </state>
-    <state x="498" y="154" width="800" height="677" key="#Inspections/67.27.1853.1068@67.27.1853.1068" timestamp="1578429944781" />
     <state x="855" y="385" width="251" height="266" key="#Notifications" timestamp="1586545380031">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
@@ -234,71 +249,65 @@
     <state x="608" y="38" width="782" height="912" key="CommitChangelistDialog2/67.27.1853.923@67.27.1853.923" timestamp="1583095028822" />
     <state x="608" y="37" key="CommitChangelistDialog2/67.27.1853.929@67.27.1853.929" timestamp="1584567684640" />
     <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2/67.27.1853.948@67.27.1853.948" timestamp="1586568623980" />
-    <state x="674" y="213" width="447" height="513" key="FileChooserDialogImpl" timestamp="1584991297471">
+    <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl" timestamp="1587563166624">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="674" y="236" width="447" height="513" key="FileChooserDialogImpl/67.27.1853.1068@67.27.1853.1068" timestamp="1582729493265" />
-    <state x="674" y="213" key="FileChooserDialogImpl/67.27.1853.948@67.27.1853.948" timestamp="1584991297471" />
-    <state x="787" y="394" key="Github.ShareDialog" timestamp="1578431271559">
-      <screen x="67" y="27" width="1853" height="1068" />
-    </state>
-    <state x="787" y="394" key="Github.ShareDialog/67.27.1853.1068@67.27.1853.1068" timestamp="1578431271559" />
-    <state x="648" y="208" width="564" height="583" key="Github.UntrackedFilesDialog" timestamp="1578430218682">
-      <screen x="67" y="27" width="1853" height="1068" />
-    </state>
-    <state x="648" y="208" width="564" height="583" key="Github.UntrackedFilesDialog/67.27.1853.1068@67.27.1853.1068" timestamp="1578430218682" />
-    <state width="832" height="209" key="GridCell.Tab.0.bottom" timestamp="1586568291615">
+    <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl/67.27.1853.948@67.27.1853.948" timestamp="1587563166624" />
+    <state width="827" height="209" key="GridCell.Tab.0.bottom" timestamp="1587135365469">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state width="1377" height="199" key="GridCell.Tab.0.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1582921101164" />
     <state width="1596" height="199" key="GridCell.Tab.0.bottom/67.27.1853.1062@67.27.1853.1062" timestamp="1584395647551" />
     <state width="1377" height="199" key="GridCell.Tab.0.bottom/67.27.1853.1068@67.27.1853.1068" timestamp="1582835207513" />
     <state width="1377" height="199" key="GridCell.Tab.0.bottom/67.27.1853.923@67.27.1853.923" timestamp="1583091071818" />
-    <state width="832" height="209" key="GridCell.Tab.0.bottom/67.27.1853.948@67.27.1853.948" timestamp="1586568291615" />
+    <state width="827" height="209" key="GridCell.Tab.0.bottom/67.27.1853.948@67.27.1853.948" timestamp="1587135365469" />
     <state width="834" height="209" key="GridCell.Tab.0.bottom/67.27.1853.988@67.27.1853.988" timestamp="1586566233387" />
-    <state width="832" height="209" key="GridCell.Tab.0.center" timestamp="1586568291615">
+    <state width="827" height="209" key="GridCell.Tab.0.center" timestamp="1587135365467">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state width="1377" height="199" key="GridCell.Tab.0.center/67.27.1853.1053@67.27.1853.1053" timestamp="1582921101163" />
     <state width="1596" height="199" key="GridCell.Tab.0.center/67.27.1853.1062@67.27.1853.1062" timestamp="1584395647550" />
     <state width="1377" height="199" key="GridCell.Tab.0.center/67.27.1853.1068@67.27.1853.1068" timestamp="1582835207512" />
     <state width="1377" height="199" key="GridCell.Tab.0.center/67.27.1853.923@67.27.1853.923" timestamp="1583091071817" />
-    <state width="832" height="209" key="GridCell.Tab.0.center/67.27.1853.948@67.27.1853.948" timestamp="1586568291615" />
+    <state width="827" height="209" key="GridCell.Tab.0.center/67.27.1853.948@67.27.1853.948" timestamp="1587135365467" />
     <state width="834" height="209" key="GridCell.Tab.0.center/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
-    <state width="832" height="209" key="GridCell.Tab.0.left" timestamp="1586568291614">
+    <state width="827" height="209" key="GridCell.Tab.0.left" timestamp="1587135365467">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state width="1377" height="199" key="GridCell.Tab.0.left/67.27.1853.1053@67.27.1853.1053" timestamp="1582921101162" />
     <state width="1596" height="199" key="GridCell.Tab.0.left/67.27.1853.1062@67.27.1853.1062" timestamp="1584395647550" />
     <state width="1377" height="199" key="GridCell.Tab.0.left/67.27.1853.1068@67.27.1853.1068" timestamp="1582835207510" />
     <state width="1377" height="199" key="GridCell.Tab.0.left/67.27.1853.923@67.27.1853.923" timestamp="1583091071817" />
-    <state width="832" height="209" key="GridCell.Tab.0.left/67.27.1853.948@67.27.1853.948" timestamp="1586568291614" />
+    <state width="827" height="209" key="GridCell.Tab.0.left/67.27.1853.948@67.27.1853.948" timestamp="1587135365467" />
     <state width="834" height="209" key="GridCell.Tab.0.left/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
-    <state width="832" height="209" key="GridCell.Tab.0.right" timestamp="1586568291615">
+    <state width="827" height="209" key="GridCell.Tab.0.right" timestamp="1587135365468">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state width="1377" height="199" key="GridCell.Tab.0.right/67.27.1853.1053@67.27.1853.1053" timestamp="1582921101164" />
     <state width="1596" height="199" key="GridCell.Tab.0.right/67.27.1853.1062@67.27.1853.1062" timestamp="1584395647550" />
     <state width="1377" height="199" key="GridCell.Tab.0.right/67.27.1853.1068@67.27.1853.1068" timestamp="1582835207512" />
     <state width="1377" height="199" key="GridCell.Tab.0.right/67.27.1853.923@67.27.1853.923" timestamp="1583091071818" />
-    <state width="832" height="209" key="GridCell.Tab.0.right/67.27.1853.948@67.27.1853.948" timestamp="1586568291615" />
+    <state width="827" height="209" key="GridCell.Tab.0.right/67.27.1853.948@67.27.1853.948" timestamp="1587135365468" />
     <state width="834" height="209" key="GridCell.Tab.0.right/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
     <state x="589" y="244" width="824" height="526" key="IDE.errors.dialog" timestamp="1585000136289">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="589" y="244" width="824" height="526" key="IDE.errors.dialog/67.27.1853.948@67.27.1853.948" timestamp="1585000136289" />
-    <state x="595" y="186" key="SettingsEditor" timestamp="1582756028901">
-      <screen x="67" y="27" width="1853" height="1068" />
+    <state x="595" y="168" width="1199" height="730" key="SettingsEditor" timestamp="1586966177649">
+      <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="595" y="186" key="SettingsEditor/67.27.1853.1068@67.27.1853.1068" timestamp="1582756028901" />
-    <state x="557" y="210" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1584567690130">
-      <screen x="67" y="27" width="1853" height="929" />
+    <state x="595" y="168" width="1199" height="730" key="SettingsEditor/67.27.1853.948@67.27.1853.948" timestamp="1586966177649" />
+    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1586568628908">
+      <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="557" y="235" key="Vcs.Push.Dialog.v2/67.27.1853.1053@67.27.1853.1053" timestamp="1582922942467" />
     <state x="557" y="236" key="Vcs.Push.Dialog.v2/67.27.1853.1062@67.27.1853.1062" timestamp="1583182788165" />
     <state x="557" y="238" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.1068@67.27.1853.1068" timestamp="1582831454830" />
     <state x="557" y="209" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.923@67.27.1853.923" timestamp="1583095031990" />
     <state x="557" y="210" key="Vcs.Push.Dialog.v2/67.27.1853.929@67.27.1853.929" timestamp="1584567690130" />
+    <state x="557" y="214" key="Vcs.Push.Dialog.v2/67.27.1853.948@67.27.1853.948" timestamp="1586568628908" />
     <state x="200" y="127" width="1419" height="645" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1583852435323">
       <screen x="67" y="27" width="1853" height="1062" />
     </state>

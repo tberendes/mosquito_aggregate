@@ -16,6 +16,7 @@
 # --Do all the necessary imports
 import statistics
 import sys
+import random
 
 import boto3 as boto3
 from netCDF4 import Dataset as NetCDFFile
@@ -27,6 +28,8 @@ from urllib.parse import unquote_plus
 import datetime
 from datetime import date
 from datetime import timedelta
+
+
 from mosquito_util import load_json_from_s3, update_status_on_s3
 
 s3 = boto3.resource(
@@ -34,13 +37,11 @@ s3 = boto3.resource(
 
 test_count = 20
 
-#import PIL
-#from PIL import Image
+import PIL
+from PIL import Image
 
 # creating a image object (new image object) with
 # RGB mode and size 200x200
-#im = PIL.Image.new(mode="RGB", size=(32, 32),color = (255, 255, 255))
-
 def update_status_test(bucket,request_id, type, status, message):
     global test_count
     statusJson = {"request_id": request_id, "type": type, "status": status, "message": message}
@@ -59,9 +60,15 @@ def update_status_test(bucket,request_id, type, status, message):
                                        "status/" + request_id + str(test_count) +".json")
     test_count = test_count + 1
 
-def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip,minlat,minlon,maxlat,maxlon):
+#def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip,minlat,minlon,maxlat,maxlon,im):
+def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip, minlat, minlon, maxlat, maxlon):
+
     #    print('calc stats')
     #    districtPrecip={}
+#    r = random.randint(0, 255)
+#    g = random.randint(0, 255)
+#    b = random.randint(0, 255)
+#    width, height = im.size
     for poly in polylist:
         if poly.get_label() not in districtPrecip.keys():
             districtPrecip[poly.get_label()] = []
@@ -84,7 +91,7 @@ def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip,minlat,minl
                         districtPrecip[poly.get_label()].append(float(precip[i][j]))
                     else:
                         districtPrecip[poly.get_label()].append(0.0)
-#                    im.putpixel((i,j),(255, 0, 0))
+#                    im.putpixel((i,height-1-j),(r, g, b))
 #                    print("lat ", lat[j], " lon ", lon[i], " precip ", precip[i][j], " inside ", poly.get_label())
 
 def calcDistrictStats(districtPrecip, districtPrecipStats):
@@ -132,7 +139,8 @@ def process_file(geometry, dataElement, statType, precipVar, s3_bucket, key):
     districts = geometry["boundaries"]
     numDists = len(districts)
 
-#    print("key " + key)
+
+    #    print("key " + key)
     # strip off directory from key for temp file
     key_split = key.split('/')
     download_fn=key_split[len(key_split) - 1]
@@ -164,6 +172,8 @@ def process_file(geometry, dataElement, statType, precipVar, s3_bucket, key):
     districtPrecip = {}
     districtPrecipStats = {}
     districtPolygons = {}
+
+#    im = PIL.Image.new(mode="RGB", size=(lon.shape[0], lat.shape[0]), color=(255, 255, 255))
 
     for district in districts:
         shape = district['geometry']
@@ -202,6 +212,7 @@ def process_file(geometry, dataElement, statType, precipVar, s3_bucket, key):
             "Skipping", dist_id, \
             "because of unknown type", shape["type"]
         # compute statisics
+#        accumPrecipByDistrict(distPoly, precip, lat, lon, districtPrecip,minlat,minlon,maxlat,maxlon,im)
         accumPrecipByDistrict(distPoly, precip, lat, lon, districtPrecip,minlat,minlon,maxlat,maxlon)
         districtPolygons[dist_id] = distPoly
 
@@ -220,6 +231,9 @@ def process_file(geometry, dataElement, statType, precipVar, s3_bucket, key):
 
     #    print("finished file " + key)
     nc.close()
+    # output image
+#    im.save('/tmp/sl_img.jpg', quality=95)
+#    s3.Bucket(s3_bucket).upload_file("/tmp/sl_img.jpg", "test/" + "sl_img.jpg")
 
     # reformat new json structure
 #    outputJson = {'dataValues' : []}
@@ -254,8 +268,8 @@ def load_json(bucket, key):
 
 def lambda_handler(event, context):
 
-    statType='mean'
-    #statType = 'median'
+    #statType='mean'
+    statType = 'median'
     # reformat new json structure
     outputJson = {'dataValues' : []}
 
@@ -281,6 +295,9 @@ def lambda_handler(event, context):
         s3bucket = input_json['s3bucket']
         files = input_json['files']
         variable = input_json['variable']
+        if "stat_type" in input_json:
+            statType = input_json['stat_type']
+        print('stat_type' + statType)
 
         update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "working", "loading geometry file...")
 #        geometryJson = load_json(bucket, "requests/geometry/" + request_id +"_geometry.json")
@@ -308,5 +325,3 @@ def lambda_handler(event, context):
 
         update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "success", "Successfully processed "
                            + str(num_files) + " files")
-#        im.save('/tmp/sl_img.jpg', quality=95)
-#        s3.Bucket(bucket).upload_file("/tmp/sl_img.jpg", "test/" +"sl_img.jpg")

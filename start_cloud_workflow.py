@@ -51,6 +51,18 @@ def lambda_handler(event, context):
     data_element_id = event['data_element_id']
     boundaries = event['boundaries']
     request_id = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(10))
+    # set some defaults
+    #statType='median'
+    statType='none'
+    product='none'
+    var_name='none'
+    #"stat_type":"mean", "product": "GPM_3IMERGDL_06", "var_name": "HQprecipitation"
+    if "stat_type" in event:
+        statType = event['stat_type']
+    if "product" in event:
+        product = event['product']
+    if "var_name" in event:
+        var_name = event['var_name']
 
     # added for new json format
     districts = boundaries
@@ -89,6 +101,12 @@ def lambda_handler(event, context):
     downloadJson = {"dataset": dataset, "org_unit": org_unit, "agg_period": period, "start_date": start_date,
         "end_date": end_date, "data_element_id": data_element_id, "request_id": request_id,
         "min_lat": minlat, "max_lat": maxlat, "min_lon": minlon, "max_lon": maxlon}
+    if statType != 'none':
+        downloadJson["stat_type"]=statType
+    if product != 'none':
+        downloadJson["product"]=product
+    if var_name != 'none':
+        downloadJson["var_name"]=var_name
 
     download_param_pathname = ""
     if dataset.lower() == 'precipitation':

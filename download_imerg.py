@@ -98,7 +98,7 @@ def download_imerg(subset_request, request_id):
         percent = response['result']['PercentCompleted']
         print('Job status: %s (%d%c complete)' % (status, percent, '%'))
     if response['result']['Status'] == 'Succeeded':
-        update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC Job Finished.")
+        update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC Job Success.")
         print('Job Finished:  %s' % response['result']['message'])
     else:
     #    print('Job Failed: %s' % response['fault']['code'])
@@ -226,6 +226,16 @@ def lambda_handler(event, context):
         maxlon = input_json['max_lon']
         minlat = input_json['min_lat']
         maxlat = input_json['max_lat']
+        statType = 'median'
+        if "stat_type" in input_json:
+            statType = input_json['stat_type']
+        print('stat_type' + statType)
+        if "product" in input_json:
+            product = input_json['product']
+        print('product' + product)
+        if "var_name" in input_json:
+            varName = input_json['var_name']
+        print('var_name' + varName)
 
         data_element_id = input_json['data_element_id']
 
@@ -271,7 +281,7 @@ def lambda_handler(event, context):
         # format new json structure
         aggregateJson = {"request_id": request_id, "data_element_id": data_element_id, "variable": varName,
                          "dataset": dataset, "org_unit": org_unit, "agg_period": agg_period,
-                         "s3bucket": data_bucket, "files": download_results}
+                         "s3bucket": data_bucket, "files": download_results, "stat_type":statType}
 
         aggregate_pathname = "requests/aggregate/precipitation/"
 
