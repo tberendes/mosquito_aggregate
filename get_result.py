@@ -53,6 +53,9 @@ def lambda_handler(event, context):
         else:
             result_json = {"status": status["status"], "message": status["type"] + ": " +status["message"]}
 
+    if "creation_time" in status:
+        result_json['creation_time'] = status['creation_time']
+
     #     found = False
     #     for result_file in my_bucket.objects.filter(Prefix="results/"):
     # #        print(result_file.key)

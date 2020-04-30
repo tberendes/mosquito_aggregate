@@ -28,8 +28,10 @@ def load_json_from_s3(bucket, key):
 
     return jsonData
 
-def update_status_on_s3(bucket, request_id, type, status, message):
+def update_status_on_s3(bucket, request_id, type, status, message, **kwargs):
     statusJson = {"request_id": request_id, "type": type, "status": status, "message": message}
+    for key, value in kwargs.items():
+        statusJson[key] = value
     with open("/tmp/" + request_id + "_"+ type +".json", 'w') as status_file:
         json.dump(statusJson, status_file)
     #        json.dump(districtPrecipStats, json_file)

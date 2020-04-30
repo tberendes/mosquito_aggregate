@@ -1,13 +1,20 @@
 import sys
 import json
-from urllib.parse import unquote_plus
+from urllib.parse import unquote_plus, urlparse, urljoin
 
+import numpy as np
 import urllib3
 import certifi
 import requests
 from time import sleep
 import boto3 as boto3
 
+import rasterio
+
+from numpy import ma
+from netCDF4 import Dataset as NetCDFFile
+
+from bs4 import BeautifulSoup
 from  mosquito_util import load_json_from_s3, update_status_on_s3
 
 data_bucket = "mosquito-data"
@@ -307,3 +314,131 @@ def lambda_handler(event, context):
 
     update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "complete",
                        "All requested files successfully downloaded ", creation_time=creation_time_in)
+
+def get_tile_hv(lat, lon, data):
+    lat = 40.015
+    lon = -105.2705
+
+    in_tile = False
+    i = 0
+    # find vertical and horizontal tile containing lat/lon point
+    while (not in_tile):
+        in_tile = lat >= data[i, 4] and lat <= data[i, 5] and lon >= data[i, 2] and lon <= data[i, 3]
+        i += 1
+    vert = data[i - 1, 0]
+    horiz = data[i - 1, 1]
+    print('Horizontal Tile: ', horiz,' Vertical Tile: ', vert)
+    return horiz, vert
+
+def is_valid(url):
+    """
+    Checks whether `url` is a valid URL.
+    """
+    parsed = urlparse(url)
+    return bool(parsed.netloc) and bool(parsed.scheme)
+
+def get_all_website_links(url):
+    """
+    Returns all URLs that belong to the same website
+    """
+    # all URLs of `url`
+    urls = set()
+    # domain name of the URL without the protocol
+    domain_name = urlparse(url).netloc
+    soup = BeautifulSoup(requests.get(url).content, "html.parser")
+
+    for a_tag in soup.findAll("a"):
+        href = a_tag.attrs.get("href")
+        if href == "" or href is None:
+            # href empty tag
+            continue
+        # join the URL if it's relative (not absolute link)
+        href = urljoin(url, href)
+        parsed_href = urlparse(href)
+        # remove URL GET parameters, URL fragments, etc.
+        href = parsed_href.scheme + "://" + parsed_href.netloc + parsed_href.path
+        if not is_valid(href):
+            # not a valid URL
+            continue
+        urls.add(href)
+        print("link: "+href)
+    return urls
+
+def download_url(url,filename):
+
+    s = requests.Session()
+    s.auth = auth
+
+    try:
+        r1 = s.request('get', url)
+        result = s.get(r1.url)
+        result.raise_for_status()
+        f = open(filename, 'wb')
+        f.write(result.content)
+        f.close()
+    except:
+        # update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
+        #                    "GES DISC retrieve results failed on file " + str(count)
+        #                    + " of " + str(numfiles) + ": " + str(result.status_code),
+        #                     creation_time=creation_time_in)
+        print('Error! could not download URL: '+url)
+        sys.exit(1)
+
+    # s3.Bucket(data_bucket).upload_file(tmpfn, "imerg/" + outfn)
+
+
+def main():
+
+    # first seven rows contain header information
+    # bottom 3 rows are not data
+    data = np.genfromtxt('sn_bound_10deg.txt',
+                         skip_header=7,
+                         skip_footer=3)
+
+    staging_url = 'https://e4ftl01.cr.usgs.gov/MOLA/MYD11B2.006/'
+
+    test_url = 'https://e4ftl01.cr.usgs.gov/MOLA/MYD11B2.006/2020.04.06/MYD11B2.A2020097.h16v08.006.2020105174027.hdf'
+
+    modis_data_product='MYD11B2'
+    year='2020'
+    day='097'
+    test_od = "http://ladsweb.modaps.eosdis.nasa.gov/opendap/hyrax/allData/6/MYD11B2/2020/097/MYD11B2.A2020097.h16v08.006.2020105174027.hdf?LST_Day_6km,LST_Night_6km,Latitude,Longitude"
+    nc = NetCDFFile(test_od)
+    day_temp = nc.variables['LST_Day_6km'][:]
+    night_temp = nc.variables['LST_Night_6km'][:]
+    scale_factor = getattr(nc.variables['LST_Night_6km'],'scale_factor')
+    lat = nc.variables['Latitude'][:]
+    lon = nc.variables['Longitude'][:]
+    print ("night_temp ", ma.getdata(night_temp)*scale_factor)
+    # need to get masked values, and scale using attribute scale_factor
+    print ("lat ", lat[0][0], "lon", lon[0][0])
+
+    nc.close()
+
+    # result = requests.get(staging_url)
+    # result.raise_for_status()
+    # print(result.text.splitlines())
+
+    #get_all_website_links(staging_url)
+
+    #download_url(test_url,"/home/dhis/tmp/MYD11B2.A2020097.h16v08.006.2020105174027.hdf")
+
+    #fn = '/home/dhis/tmp/MYD11B2.A2020097.h16v08.006.2020105174027.hdf'
+
+    # with rasterio.open(fn) as src:
+    #     subdatasets = src.subdatasets
+    # print(subdatasets)
+    # # --Pull out the needed variables, lat/lon, time and precipitation.  These subsetted files only have precip param.
+    # day_temp = nc.variables['MODIS_Grid_8Day_6km_LST/Data_fields/LST_Day_6km_Aggregated_from_1km'][:]
+    # night_temp = nc.variables['MODIS_Grid_8Day_6km_LST/Data_fields/LST_Night_6km_Aggregated_from_1km'][:]
+    # hdfeos_crs = nc.variables['MODIS_Grid_8Day_6km_LST/Data_fields/_HDFEOS_CRS'][:]
+
+    # p_modis_grid = Proj('+proj=sinu +R=6371007.181 +nadgrids=@null +wktext')
+    # x, y = p_modis_grid(0, 0)
+    # # or the inverse, from x, y to lon, lat
+    # lon, lat = p_modis_grid(x, y, inverse=True)
+
+
+
+if __name__ == '__main__':
+   main()

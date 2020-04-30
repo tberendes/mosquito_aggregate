@@ -2,6 +2,7 @@ import string
 import json
 import random
 import boto3 as boto3
+from datetime import datetime
 
 data_bucket = "mosquito-data"
 
@@ -96,11 +97,15 @@ def lambda_handler(event, context):
             "Skipping", dist_name, \
             "because of unknown type", shape["type"]
 
+    # datetime object containing current date and time
+    now = datetime.now()
+    date_st = now.strftime("%m-%d-%YT%H:%M:%SZ")
+    print("process started: " + date_st)
 
     # format new json structure
     downloadJson = {"dataset": dataset, "org_unit": org_unit, "agg_period": period, "start_date": start_date,
         "end_date": end_date, "data_element_id": data_element_id, "request_id": request_id,
-        "min_lat": minlat, "max_lat": maxlat, "min_lon": minlon, "max_lon": maxlon}
+        "min_lat": minlat, "max_lat": maxlat, "min_lon": minlon, "max_lon": maxlon, "creation_time":date_st}
     if statType != 'none':
         downloadJson["stat_type"]=statType
     if product != 'none':

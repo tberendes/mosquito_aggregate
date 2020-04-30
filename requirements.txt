@@ -5,3 +5,4 @@ certifi
 requests
 urllib3
 pillow
+numpy
