@@ -339,7 +339,7 @@ def is_valid(url):
 
 def get_all_website_links(url):
     """
-    Returns all URLs that belong to the same website
+    Returns all URLs listed on a page
     """
     # all URLs of `url`
     urls = set()
@@ -361,8 +361,76 @@ def get_all_website_links(url):
             # not a valid URL
             continue
         urls.add(href)
-        print("link: "+href)
+        #print("link: "+href)
+        print("path: "+parsed_href.path)
     return urls
+
+def get_date_dirs(url, path_prefix):
+    """
+    Returns all date encoded sub-directories in the url
+    """
+    # all URLs of `url`
+    dates = []
+    # domain name of the URL without the protocol
+    domain_name = urlparse(url).netloc
+    soup = BeautifulSoup(requests.get(url).content, "html.parser")
+
+    for a_tag in soup.findAll("a"):
+        href = a_tag.attrs.get("href")
+        if href == "" or href is None:
+            # href empty tag
+            continue
+        # join the URL if it's relative (not absolute link)
+        href = urljoin(url, href)
+        parsed_href = urlparse(href)
+        # remove URL GET parameters, URL fragments, etc.
+        href = parsed_href.scheme + "://" + parsed_href.netloc + parsed_href.path
+        str_path = str(parsed_href.path)
+        path_pos = str_path.find(path_prefix)
+        if not is_valid(href) or path_pos < 0:
+            # not a valid URL
+            continue
+        #print("link: "+href)
+        date_path = str_path[path_pos+len(path_prefix):len(str_path)-1].replace('.','-',2)
+        #date_path = str_path[path_pos+len(path_prefix):len(str_path)-1]
+        print("date: "+date_path)
+        dates.append(date_path)
+
+    return dates
+
+def get_filenames(url, dates, tiles):
+    """
+    Returns a list of filenames for the horiz and vert indices of the sinusoidal projection
+    """
+    # all URLs of `url`
+    files = []
+    # domain name of the URL without the protocol
+    soup = BeautifulSoup(requests.get(url).content, "html.parser")
+
+    for date in dates:
+        directory = url+'/' + date.replace('-', '.', 2) + '/'
+        soup = BeautifulSoup(requests.get(directory).content, "html.parser")
+        for tile in tiles:
+            date_str = date.replace('-','.',2)
+            hv_str = 'h{:02d}v{:02d}'.format(tile[0],tile[1])
+            print("hv "+hv_str)
+            for a_tag in soup.findAll("a"):
+                href = a_tag.attrs.get("href")
+                if href == "" or href is None:
+                    # href empty tag
+                    continue
+                # join the URL if it's relative (not absolute link)
+                href = urljoin(directory, href)
+                parsed_href = urlparse(href)
+                str_path = str(parsed_href.path)
+
+                hv_pos = str_path.find(hv_str)
+                if hv_pos < 0 or not str_path.endswith('.hdf'):
+                    continue
+                print("file: "+str_path)
+                files.append(str_path)
+
+    return files
 
 def download_url(url,filename):
 
@@ -388,6 +456,69 @@ def download_url(url,filename):
 
 
 def main():
+    event = {"dataset": "land_sfc_temperature", "org_unit": "district", "stat_type": "mean", "product": "MOD11B2",
+               "var_name": "LST_Day_6km", "agg_period": "daily", "start_date": "2019-08-01T00:00:00.000Z",
+               "end_date": "2019-08-31T00:00:00.000Z"}
+    tiles = [[16,8]]
+
+    modis_version = 6
+    listing_site = 'e4ftl01.cr.usgs.gov'
+
+    modis_version_string = '{:03d}'.format(modis_version)
+    print("modis_version_string "+modis_version_string)
+    product = event['product']
+    start_date = event['start_date'].split('T')[0]
+    end_date = event['end_date'].split('T')[0]
+
+    if 'MOD' in product: # Terra
+        sat_dir = "MOLT"
+    elif 'MYD' in product: # Aqua
+        sat_dir = "MOLA"
+    else:
+        print('Error! unknown product : '+product)
+        sys.exit(1)
+
+    listing_url = 'https://'+listing_site+'/' + sat_dir + '/' + product + '.' + modis_version_string+'/'
+    print("listing_url: "+ listing_url)
+    #get_all_website_links(listing_url)
+    #/MOLT/MOD11B2.006/
+    all_dates = get_date_dirs(listing_url, '/'+sat_dir+'/'+product+'.'+modis_version_string+'/')
+    use_dates = []
+    for date in sorted(all_dates):
+        if date >= start_date and date <= end_date:
+            use_dates.append(date)
+    print("use dates: ",use_dates)
+
+    filenames=get_filenames(listing_url,use_dates,tiles)
+    # for date in use_dates:
+    #     for tile in tiles:
+    #         files = get_filenames(listing_url+'/'+date.replace('-','.',2)+'/', tile[0], tile[1])
+
+
+    sys.exit(0)
+    #result = requests.get(listing_url)
+    #result.raise_for_status()
+    # print(result.text.splitlines())
+
+    # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
+
+    # determine all of the tiles necessary to cover the desired region
+
+    #  list directories (dates) under the direct file access site to get filenames and dates
+
+    # set up opendap urls using filenames from direct access site.  With opendap we can request only the variables
+    # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
+
+    # result = requests.get(staging_url)
+    # result.raise_for_status()
+    # print(result.text.splitlines())
+
+    #get_all_website_links(staging_url)
+
+    #download_url(test_url,"/home/dhis/tmp/MYD11B2.A2020097.h16v08.006.2020105174027.hdf")
+
+
+
 
     # first seven rows contain header information
     # bottom 3 rows are not data
@@ -398,6 +529,7 @@ def main():
     staging_url = 'https://e4ftl01.cr.usgs.gov/MOLA/MYD11B2.006/'
 
     test_url = 'https://e4ftl01.cr.usgs.gov/MOLA/MYD11B2.006/2020.04.06/MYD11B2.A2020097.h16v08.006.2020105174027.hdf'
+
 
     modis_data_product='MYD11B2'
     year='2020'
@@ -415,29 +547,8 @@ def main():
 
     nc.close()
 
-    # result = requests.get(staging_url)
-    # result.raise_for_status()
-    # print(result.text.splitlines())
-
-    #get_all_website_links(staging_url)
-
-    #download_url(test_url,"/home/dhis/tmp/MYD11B2.A2020097.h16v08.006.2020105174027.hdf")
 
     #fn = '/home/dhis/tmp/MYD11B2.A2020097.h16v08.006.2020105174027.hdf'
-
-    # with rasterio.open(fn) as src:
-    #     subdatasets = src.subdatasets
-    # print(subdatasets)
-    # # --Pull out the needed variables, lat/lon, time and precipitation.  These subsetted files only have precip param.
-    # day_temp = nc.variables['MODIS_Grid_8Day_6km_LST/Data_fields/LST_Day_6km_Aggregated_from_1km'][:]
-    # night_temp = nc.variables['MODIS_Grid_8Day_6km_LST/Data_fields/LST_Night_6km_Aggregated_from_1km'][:]
-    # hdfeos_crs = nc.variables['MODIS_Grid_8Day_6km_LST/Data_fields/_HDFEOS_CRS'][:]
-
-    # p_modis_grid = Proj('+proj=sinu +R=6371007.181 +nadgrids=@null +wktext')
-    # x, y = p_modis_grid(0, 0)
-    # # or the inverse, from x, y to lon, lat
-    # lon, lat = p_modis_grid(x, y, inverse=True)
-
 
 
 if __name__ == '__main__':

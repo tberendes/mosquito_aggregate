@@ -2,18 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c25fb7d0-2edc-4dbf-811e-812bcf1be1a3" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/download_MOD11B2.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/sn_bound_10deg.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/aggregate_imerg.py" beforeDir="false" afterPath="$PROJECT_DIR$/aggregate_imerg.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/download_imerg.py" beforeDir="false" afterPath="$PROJECT_DIR$/download_imerg.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/get_result.py" beforeDir="false" afterPath="$PROJECT_DIR$/get_result.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mosquito_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/mosquito_util.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sample_payload.json" beforeDir="false" afterPath="$PROJECT_DIR$/sample_payload.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/start_cloud_workflow.py" beforeDir="false" afterPath="$PROJECT_DIR$/start_cloud_workflow.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/request.json" beforeDir="false" afterPath="$PROJECT_DIR$/test/request.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_get_result.json" beforeDir="false" afterPath="$PROJECT_DIR$/test_get_result.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/download_MOD11B2.py" beforeDir="false" afterPath="$PROJECT_DIR$/download_aggregate_opendap.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -61,7 +51,7 @@
       <recent name="$PROJECT_DIR$/test" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.download_MOD11B2">
+  <component name="RunManager" selected="Python.download_aggregate_opendap">
     <configuration name="aggregate_imerg" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="mosquito" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -83,7 +73,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="download_MOD11B2" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="download_aggregate_opendap" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="mosquito" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -95,7 +85,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/download_MOD11B2.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/download_aggregate_opendap.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -124,11 +114,11 @@
       <item itemvalue="AWS Lambda.[Remote] get_result" />
       <item itemvalue="AWS Lambda.[Remote] start_cloud_workflow" />
       <item itemvalue="Python.aggregate_imerg" />
-      <item itemvalue="Python.download_MOD11B2" />
+      <item itemvalue="Python.download_aggregate_opendap" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.download_MOD11B2" />
+        <item itemvalue="Python.download_aggregate_opendap" />
         <item itemvalue="AWS Lambda.[Remote] get_result" />
         <item itemvalue="AWS Lambda.[Remote] start_cloud_workflow" />
         <item itemvalue="Python.aggregate_imerg" />
@@ -223,7 +213,14 @@
       <option name="project" value="LOCAL" />
       <updated>1587566382940</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="Added creation time to status message">
+      <created>1588255336058</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1588255336058</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -246,7 +243,8 @@
     <MESSAGE value="Updated final status to include message" />
     <MESSAGE value="CORS fixes" />
     <MESSAGE value="Changed aggregation value to mean instead of median, made agg more efficient" />
-    <option name="LAST_COMMIT_MESSAGE" value="Changed aggregation value to mean instead of median, made agg more efficient" />
+    <MESSAGE value="Added creation time to status message" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added creation time to status message" />
   </component>
   <component name="WindowStateProjectService">
     <state x="855" y="385" width="251" height="266" key="#Notifications" timestamp="1586545380031">
@@ -274,7 +272,7 @@
     </state>
     <state x="719" y="234" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog/67.27.1853.1068@67.27.1853.1068" timestamp="1581714271840" />
     <state x="719" y="206" width="624" height="544" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog/67.27.1853.923@67.27.1853.923" timestamp="1582745781795" />
-    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2" timestamp="1587566381483">
+    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2" timestamp="1588255334496">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="608" y="94" key="CommitChangelistDialog2/67.27.1853.1053@67.27.1853.1053" timestamp="1582922937303" />
@@ -282,47 +280,51 @@
     <state x="608" y="95" width="777" height="807" key="CommitChangelistDialog2/67.27.1853.1068@67.27.1853.1068" timestamp="1582840783482" />
     <state x="608" y="38" width="782" height="912" key="CommitChangelistDialog2/67.27.1853.923@67.27.1853.923" timestamp="1583095028822" />
     <state x="608" y="37" key="CommitChangelistDialog2/67.27.1853.929@67.27.1853.929" timestamp="1584567684640" />
-    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2/67.27.1853.948@67.27.1853.948" timestamp="1587566381483" />
+    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2/67.27.1853.948@67.27.1853.948" timestamp="1588255334496" />
+    <state x="330" y="158" width="1416" height="645" key="DiffContextDialog" timestamp="1588256835529">
+      <screen x="67" y="27" width="1853" height="948" />
+    </state>
+    <state x="330" y="158" width="1416" height="645" key="DiffContextDialog/67.27.1853.948@67.27.1853.948" timestamp="1588256835529" />
     <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl" timestamp="1588255270728">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="674" y="236" width="447" height="513" key="FileChooserDialogImpl/67.27.1853.1068@67.27.1853.1068" timestamp="1582729493265" />
     <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl/67.27.1853.948@67.27.1853.948" timestamp="1588255270728" />
-    <state width="1593" height="209" key="GridCell.Tab.0.bottom" timestamp="1588199453672">
+    <state width="1593" height="209" key="GridCell.Tab.0.bottom" timestamp="1588285361815">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state width="1377" height="199" key="GridCell.Tab.0.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1582921101164" />
     <state width="1596" height="199" key="GridCell.Tab.0.bottom/67.27.1853.1062@67.27.1853.1062" timestamp="1584395647551" />
     <state width="1377" height="199" key="GridCell.Tab.0.bottom/67.27.1853.1068@67.27.1853.1068" timestamp="1582835207513" />
     <state width="1377" height="199" key="GridCell.Tab.0.bottom/67.27.1853.923@67.27.1853.923" timestamp="1583091071818" />
-    <state width="1593" height="209" key="GridCell.Tab.0.bottom/67.27.1853.948@67.27.1853.948" timestamp="1588199453672" />
+    <state width="1593" height="209" key="GridCell.Tab.0.bottom/67.27.1853.948@67.27.1853.948" timestamp="1588285361815" />
     <state width="834" height="209" key="GridCell.Tab.0.bottom/67.27.1853.988@67.27.1853.988" timestamp="1586566233387" />
-    <state width="1593" height="209" key="GridCell.Tab.0.center" timestamp="1588199453671">
+    <state width="1593" height="209" key="GridCell.Tab.0.center" timestamp="1588285361814">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state width="1377" height="199" key="GridCell.Tab.0.center/67.27.1853.1053@67.27.1853.1053" timestamp="1582921101163" />
     <state width="1596" height="199" key="GridCell.Tab.0.center/67.27.1853.1062@67.27.1853.1062" timestamp="1584395647550" />
     <state width="1377" height="199" key="GridCell.Tab.0.center/67.27.1853.1068@67.27.1853.1068" timestamp="1582835207512" />
     <state width="1377" height="199" key="GridCell.Tab.0.center/67.27.1853.923@67.27.1853.923" timestamp="1583091071817" />
-    <state width="1593" height="209" key="GridCell.Tab.0.center/67.27.1853.948@67.27.1853.948" timestamp="1588199453671" />
+    <state width="1593" height="209" key="GridCell.Tab.0.center/67.27.1853.948@67.27.1853.948" timestamp="1588285361814" />
     <state width="834" height="209" key="GridCell.Tab.0.center/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
-    <state width="1593" height="209" key="GridCell.Tab.0.left" timestamp="1588199453670">
+    <state width="1593" height="209" key="GridCell.Tab.0.left" timestamp="1588285361813">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state width="1377" height="199" key="GridCell.Tab.0.left/67.27.1853.1053@67.27.1853.1053" timestamp="1582921101162" />
     <state width="1596" height="199" key="GridCell.Tab.0.left/67.27.1853.1062@67.27.1853.1062" timestamp="1584395647550" />
     <state width="1377" height="199" key="GridCell.Tab.0.left/67.27.1853.1068@67.27.1853.1068" timestamp="1582835207510" />
     <state width="1377" height="199" key="GridCell.Tab.0.left/67.27.1853.923@67.27.1853.923" timestamp="1583091071817" />
-    <state width="1593" height="209" key="GridCell.Tab.0.left/67.27.1853.948@67.27.1853.948" timestamp="1588199453670" />
+    <state width="1593" height="209" key="GridCell.Tab.0.left/67.27.1853.948@67.27.1853.948" timestamp="1588285361813" />
     <state width="834" height="209" key="GridCell.Tab.0.left/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
-    <state width="1593" height="209" key="GridCell.Tab.0.right" timestamp="1588199453671">
+    <state width="1593" height="209" key="GridCell.Tab.0.right" timestamp="1588285361814">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state width="1377" height="199" key="GridCell.Tab.0.right/67.27.1853.1053@67.27.1853.1053" timestamp="1582921101164" />
     <state width="1596" height="199" key="GridCell.Tab.0.right/67.27.1853.1062@67.27.1853.1062" timestamp="1584395647550" />
     <state width="1377" height="199" key="GridCell.Tab.0.right/67.27.1853.1068@67.27.1853.1068" timestamp="1582835207512" />
     <state width="1377" height="199" key="GridCell.Tab.0.right/67.27.1853.923@67.27.1853.923" timestamp="1583091071818" />
-    <state width="1593" height="209" key="GridCell.Tab.0.right/67.27.1853.948@67.27.1853.948" timestamp="1588199453671" />
+    <state width="1593" height="209" key="GridCell.Tab.0.right/67.27.1853.948@67.27.1853.948" timestamp="1588285361814" />
     <state width="834" height="209" key="GridCell.Tab.0.right/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
     <state x="589" y="244" width="824" height="526" key="IDE.errors.dialog" timestamp="1585000136289">
       <screen x="67" y="27" width="1853" height="948" />
@@ -333,7 +335,7 @@
     </state>
     <state x="595" y="186" key="SettingsEditor/67.27.1853.1068@67.27.1853.1068" timestamp="1582756028901" />
     <state x="595" y="168" width="1199" height="730" key="SettingsEditor/67.27.1853.948@67.27.1853.948" timestamp="1586966177649" />
-    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1587566385315">
+    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1588255343348">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="557" y="235" key="Vcs.Push.Dialog.v2/67.27.1853.1053@67.27.1853.1053" timestamp="1582922942467" />
@@ -341,7 +343,7 @@
     <state x="557" y="238" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.1068@67.27.1853.1068" timestamp="1582831454830" />
     <state x="557" y="209" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.923@67.27.1853.923" timestamp="1583095031990" />
     <state x="557" y="210" key="Vcs.Push.Dialog.v2/67.27.1853.929@67.27.1853.929" timestamp="1584567690130" />
-    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.948@67.27.1853.948" timestamp="1587566385315" />
+    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.948@67.27.1853.948" timestamp="1588255343348" />
     <state x="200" y="127" width="1419" height="645" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1583852435323">
       <screen x="67" y="27" width="1853" height="1062" />
     </state>
