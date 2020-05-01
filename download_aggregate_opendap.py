@@ -1,15 +1,13 @@
+import os
 import sys
+import statistics
 import json
 from urllib.parse import unquote_plus, urlparse, urljoin
+import datetime
 
 import numpy as np
-import urllib3
-import certifi
 import requests
-from time import sleep
 import boto3 as boto3
-
-import rasterio
 
 from numpy import ma
 from netCDF4 import Dataset as NetCDFFile
@@ -17,175 +15,181 @@ from netCDF4 import Dataset as NetCDFFile
 from bs4 import BeautifulSoup
 from  mosquito_util import load_json_from_s3, update_status_on_s3
 
+from matplotlib.patches import Polygon
+import matplotlib.path as mpltPath
+
 data_bucket = "mosquito-data"
 
 auth = ('mosquito2019', 'Malafr#1')
 
 s3 = boto3.resource(
     's3')
+def accumVariableByDistrict(polylist, variable, lat, lon, districtVariable, minlat, minlon, maxlat, maxlon):
 
-test_count = 0
-# Create a urllib PoolManager instance to make requests.
-http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
-#http = urllib3.PoolManager()
-# Set the URL for the GES DISC subset service endpoint
-url = 'https://disc.gsfc.nasa.gov/service/subset/jsonwsp'
+    for poly in polylist:
+        if poly.get_label() not in districtVariable.keys():
+            districtVariable[poly.get_label()] = []
+        #        for ptLat,ptLon,val in lat,lon,Variable:
+        #        print("poly ", poly.get_label())
+        for i in range(lon.shape[0]):
+            for j in range(lon.shape[1]):
+                if lon[i][j] < minlon or lon[i][j] > maxlon:
+                    continue
+                #            print("i ",i)
+                if lat[i][j] < minlat or lat[i][j] > maxlat:
+                    continue
+                #                print("j ",j)
+                #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
+                path = mpltPath.Path(poly.xy)
+                inside = path.contains_point((lon[i][j], lat[i][j]))
+                if inside:
+                    # add Variable value to district
+                    if variable[i][j] >= 0.0:
+                        districtVariable[poly.get_label()].append(float(variable[i][j]))
+                    else:
+                        districtVariable[poly.get_label()].append(0.0)
+#                    im.putpixel((i,height-1-j),(r, g, b))
+#                    print("lat ", lat[j], " lon ", lon[i], " variable ", variable[i][j], " inside ", poly.get_label())
 
-# This method POSTs formatted JSON WSP requests to the GES DISC endpoint URL
-# It is created for convenience since this task will be repeated more than once
-def get_http_data(request):
-    hdrs = {'Content-Type': 'application/json',
-            'Accept': 'application/json'}
-    data = json.dumps(request)
-    r = http.request('POST', url, body=data, headers=hdrs)
-    response = json.loads(r.data)
-    print('request ', request)
-    print('response ', response)
-    # Check for errors
-    if response['type'] == 'jsonwsp/fault':
-        print('API Error: faulty %s request' % response['methodname'])
-        sys.exit(1)
-    return response
-
-def update_status_test(bucket,request_id, type, status, message):
-    global test_count
-    statusJson = {"request_id": request_id, "type": type, "status": status, "message": message}
-    with open("/tmp/" + request_id + "_"+ type +".json", 'w') as status_file:
-        json.dump(statusJson, status_file)
-    #        json.dump(districtPrecipStats, json_file)
-    status_file.close()
-
-#    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
-#                                       "status/" + request_id + "_" + type +".json")
-#    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
-#                                       "status/" + request_id + "_" + type + str(test_count) +".json")
-    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
-                                       "status/" + request_id + ".json")
-    bucket.upload_file("/tmp/" + request_id + "_" + type +".json",
-                                       "status/" + request_id + str(test_count) +".json")
-    test_count = test_count + 1
-
-def download_imerg(subset_request, request_id, creation_time_in):
-
-    # Define the parameters for the data subset
-    download_results = []
-    # Submit the subset request to the GES DISC Server
-    response = get_http_data(subset_request)
-    # Report the JobID and initial status
-    myJobId = response['result']['jobId']
-    print('Job ID: ' + myJobId)
-    print('Job status: ' + response['result']['Status'])
-    update_status_on_s3(s3.Bucket(data_bucket),request_id,
-                        "download", "working", "initiated GES DISC order...",
-                        creation_time=creation_time_in)
-
-    # Construct JSON WSP request for API method: GetStatus
-    status_request = {
-        'methodname': 'GetStatus',
-        'version': '1.0',
-        'type': 'jsonwsp/request',
-        'args': {'jobId': myJobId}
-    }
-    status_change_count=0
-    previous_status = ''
-    # Check on the job status after a brief nap
-    while response['result']['Status'] in ['Accepted', 'Running']:
-        sleep(2)
-        response = get_http_data(status_request)
-        status = response['result']['Status']
-        if status == previous_status:
-            status_change_count = status_change_count + 1
-            previous_status = status
+def calcDistrictStats(districtVariable, districtVariableStats):
+    for dist in districtVariable.keys():
+        if dist not in districtVariableStats.keys():
+            districtVariableStats[dist] = {}
+        if len(districtVariable[dist]) > 0:
+            #            print('len ',len(districtVariable[dist]))
+            #            print('points ',districtVariable[dist])
+            mean = statistics.mean(districtVariable[dist])
+            median = statistics.median(districtVariable[dist])
+            maxval = max(districtVariable[dist])
+            minval = min(districtVariable[dist])
         else:
-            status_change_count = 0
-            previous_status = status
-        if status_change_count > 30:
-            print('Job status has not changed in 60 seconds, probably hung on GES DISC server')
-            update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
-                                "Connection problem with GES DISC, order failed ",
-                                creation_time=creation_time_in)
-            sys.exit(1)
-        percent = response['result']['PercentCompleted']
-        print('Job status: %s (%d%c complete)' % (status, percent, '%'))
-    if response['result']['Status'] == 'Succeeded':
-        update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC Job Success.",
-                            creation_time=creation_time_in)
-        print('Job Finished:  %s' % response['result']['message'])
-    else:
-    #    print('Job Failed: %s' % response['fault']['code'])
-        print('Job Failed: %s' % response['result']['message'])
-        update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
-                           "GES DISC order failed: " + response['result']['message'],
-                            creation_time=creation_time_in)
-        sys.exit(1)
+            mean = 0.0
+            median = 0.0
+            maxval = 0.0
+            minval = 0.0
+        #        meadian_high = statistics.median_high(districtVariable[dist])
+        #        meadian_low = statistics.median_low(districtVariable[dist])
+        #        std_dev = statistics.stdev(districtVariable[dist])
+        #        variance = statistics.variance(districtVariable[dist])
+        districtVariableStats[dist] = dict([
+            ('mean', mean),
+            ('median', median),
+            ('max', maxval),
+            ('min', minval),
+            ('count', len(districtVariable[dist]))
+        ])
 
-    # Retrieve a plain-text list of results in a single shot using the saved JobID
-    try:
-        result = requests.get('https://disc.gsfc.nasa.gov/api/jobs/results/' + myJobId)
-        result.raise_for_status()
-        print(result.text)
-    #    urls = result.text.split('\n')
-        urls = result.text.splitlines()
-#        for i in urls: print('%s' % i)
-    except:
-        print('Request returned error code %d' % result.status_code)
-        update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
-                           "GES DISC retrieve results list failed: " + result.status_code,
-                            creation_time=creation_time_in)
-        sys.exit(1)
-    # count the valild files
-    filelist = []
-    for item in urls:
-        outfn = item.split('/')
-        if len(outfn) <= 0:
-            print('skipping unknown file '+outfn)
-            continue
-        outfn = outfn[len(outfn) - 1].split('?')[0]
-        # skip pdf documentation files staged automatically by request
-        if not outfn.endswith('.pdf'):
-            entry = {"outfn": outfn, "url":item}
-            filelist.append(entry)
+
+def find_maxmin_latlon(lat,lon,minlat,minlon,maxlat,maxlon):
+    if lat > maxlat:
+        maxlat = lat
+    if lat < minlat:
+        minlat = lat
+    if lon > maxlon:
+        maxlon = lon
+    if lon < minlon:
+        minlon = lon
+    return minlat,minlon,maxlat,maxlon
+
+def process_file(geometry, dataElement, statType, var_name, opendapUrl):
+
+    districts = geometry["boundaries"]
+
+    nc = NetCDFFile(opendapUrl)
+    variable = nc.variables[var_name][:]
+    scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+    lat = nc.variables['Latitude'][:]
+    lon = nc.variables['Longitude'][:]
+    print("Variable:  " + var_name + " ", ma.getdata(variable) * scale_factor)
+    # need to get masked values, and scale using attribute scale_factor
+    print("lat ", lat[0][0], "lon", lon[0][0])
+    nc.close()
+
+    # strip out yyyyddd from opendap url
+    tempStr = opendapUrl.split('.')[1]
+    year = tempStr[1:5]
+    days = tempStr[5:8]
+    startTime = datetime.datetime(year, 1, 1) + datetime.timedelta(days - 1)
+    dateStr = startTime.strftime("%Y%m%d")
+
+    modis_var = nc.variables[var_name][:]
+
+    # globals for Variable values and stats by district
+    districtVariable = {}
+    districtVariableStats = {}
+    districtPolygons = {}
+
+#    im = PIL.Image.new(mode="RGB", size=(lon.shape[0], lat.shape[0]), color=(255, 255, 255))
+
+    for district in districts:
+        shape = district['geometry']
+        coords = district['geometry']['coordinates']
+ #       name = district['properties']['name']
+        name = district['name']
+        dist_id = district['id']
+
+        def handle_subregion(subregion):
+#            poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=name)
+            poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=dist_id)
+            return poly
+
+        distPoly = []
+
+        minlat = 90.0
+        maxlat = -90.0
+        minlon = 180.0
+        maxlon = -180.0
+        if shape["type"] == "Polygon":
+            for subregion in coords:
+                distPoly.append(handle_subregion(subregion))
+                for coord in subregion:
+                    minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon, maxlat, maxlon)
+        elif shape["type"] == "MultiPolygon":
+            for subregion in coords:
+                #            print("subregion")
+                for sub1 in subregion:
+                    #                print("sub-subregion")
+                    distPoly.append(handle_subregion(sub1))
+                    for coord in sub1:
+                        minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon,
+                                                                        maxlat, maxlon)
         else:
-            print('skipping documentation file '+outfn)
+            print
+            "Skipping", dist_id, \
+            "because of unknown type", shape["type"]
+        # compute statisics
+#        accumVariableByDistrict(distPoly, variable, lat, lon, districtVariable,minlat,minlon,maxlat,maxlon,im)
+        accumVariableByDistrict(distPoly, modis_var, lat, lon, districtVariable,minlat,minlon,maxlat,maxlon)
+        districtPolygons[dist_id] = distPoly
 
-    numfiles = len(filelist)
+    calcDistrictStats(districtVariable, districtVariableStats)
+    for district in districts:
+       # name = district['properties']['name']
+        dist_id = district['id']
+        name = district['name']
+#        print("district name ", name)
+#        print("district id", dist_id)
+#        print("mean Variable ", districtVariableStats[dist_id]['mean'])
+#        print("median Variable ", districtVariableStats[dist_id]['median'])
+#        print("max Variable ", districtVariableStats[dist_id]['max'])
+#        print("min Variable ", districtVariableStats[dist_id]['min'])
+#        print("count ", districtVariableStats[dist_id]['count'])
 
-    # Use the requests library to submit the HTTP_Services URLs and write out the results.
-    count = 0
-    for entry in filelist:
-        URL = entry["url"]
-        outfn = entry["outfn"]
-        download_results.append("imerg/"+outfn)
-        print('outfile %s ' % outfn)
-        print("item " + item)
-        s=requests.Session()
-        s.auth = auth
+    #    print("finished file " + key)
+    nc.close()
+    # output image
+#    im.save('/tmp/sl_img.jpg', quality=95)
+#    s3.Bucket(s3_bucket).upload_file("/tmp/sl_img.jpg", "test/" + "sl_img.jpg")
 
-        try:
-            r1 = s.request('get', URL)
-            result = s.get(r1.url)
-            result.raise_for_status()
-            tmpfn = '/tmp/' + outfn
-            f = open(tmpfn, 'wb')
-            f.write(result.content)
-            f.close()
-            print(outfn)
+    # reformat new json structure
+#    outputJson = {'dataValues' : []}
+    outputJson = []
+    for key in districtVariableStats.keys():
+        value = districtVariableStats[key][statType]
+        jsonRecord = {'dataElement':dataElement,'period':dateStr,'orgUnit':key,'value':value}
+        outputJson.append(jsonRecord)
 
-            s3.Bucket(data_bucket).upload_file(tmpfn, "imerg/"+outfn)
-            count = count + 1
-            update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "working", "GES DISC downloaded file "
-                               + str(count)
-                          + " of " + str(numfiles), creation_time=creation_time_in)
-        except:
-            update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
-                               "GES DISC retrieve results failed on file " + str(count)
-                               + " of " + str(numfiles) + ": " + str(result.status_code),
-                                creation_time=creation_time_in)
-            print('Error! Status code is %d for this URL:\n%s' % (result.status.code, URL))
-            print('Help for downloading data is at https://disc.gsfc.nasa.gov/data-access')
-            sys.exit(1)
-
-    return download_results
+    return outputJson
 
 def load_json(bucket, key):
 
@@ -206,116 +210,7 @@ def load_json(bucket, key):
 
     return jsonData
 
-def lambda_handler(event, context):
-    #    product = 'GPM_3IMERGDE_06'
-    # use "Late" product
-    #product = 'GPM_3IMERGDL_06'
-    #varName = 'HQprecipitation'
-
-    global test_count
-    test_count = 0
-    for record in event['Records']:
-        bucket = record['s3']['bucket']['name']
-        key = unquote_plus(record['s3']['object']['key'])
-
-#        input_json = load_json(bucket, key)
-        input_json = load_json_from_s3(s3.Bucket(bucket), key)
-        if "message" in input_json and input_json["message"] == "error":
-            update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
-                               "load_json_from_s3 could not load " + key)
-            sys.exit(1)
-
-        dataset = input_json["dataset"]
-        org_unit = input_json["org_unit"]
-        agg_period = input_json["agg_period"]
-        request_id = input_json["request_id"]
-        print("request_id ", request_id)
-
-        start_date = input_json['start_date']
-        end_date = input_json['end_date']
-        #begTime = '2015-08-01T00:00:00.000Z'
-        #endTime = '2015-08-01T23:59:59.999Z'
-
-        minlon = input_json['min_lon']
-        maxlon = input_json['max_lon']
-        minlat = input_json['min_lat']
-        maxlat = input_json['max_lat']
-        creation_time_in = input_json['creation_time']
-
-        statType = 'mean'
-        product = 'GPM_3IMERGDF_06'
-        varName = 'precipitationCal'
-        if "stat_type" in input_json:
-            statType = input_json['stat_type']
-        print('stat_type' + statType)
-        if "product" in input_json:
-            product = input_json['product']
-        print('product' + product)
-        if "var_name" in input_json:
-            varName = input_json['var_name']
-        print('var_name' + varName)
-
-        data_element_id = input_json['data_element_id']
-
-    #    varName = event['variable']
-        # Construct JSON WSP request for API method: subset
-#        subset_request = {
-#            'methodname': 'subset',
-#            'type': 'jsonwsp/request',
-#            'version': '1.0',
-#            'args': {
-#                'role': 'subset',
-#                'start': start_date,
-#                'end': end_date,
-#                'box': [minlon, minlat, maxlon, maxlat],
-#                'extent': [minlon, minlat, maxlon, maxlat],
-#                'data': [{'datasetId': product,
-#                          'variable': varName
-#                          }]
-#            }
-#        }
-
-        subset_request = {
-            'methodname': 'subset',
-            'type': 'jsonwsp/request',
-            'version': '1.0',
-            'args': {
-                'role': 'subset',
-                'start': start_date,
-                'end': end_date,
-                'box': [minlon, minlat, maxlon, maxlat],
-                'crop': True,
-                'data': [{'datasetId': product,
-                          'variable': varName
-                          }]
-            }
-        }
-
-        download_results=download_imerg(subset_request, request_id, creation_time_in)
-
-        # need error check on download_imerg
-
-        # write out file list as json file into monitored s3 bucket to trigger aggregation
-        # format new json structure
-        aggregateJson = {"request_id": request_id, "data_element_id": data_element_id, "variable": varName,
-                         "dataset": dataset, "org_unit": org_unit, "agg_period": agg_period,
-                         "s3bucket": data_bucket, "files": download_results, "stat_type":statType,
-                         "creation_time":creation_time_in}
-
-        aggregate_pathname = "requests/aggregate/precipitation/"
-
-        with open("/tmp/" + request_id + "_aggregate.json", 'w') as aggregate_file:
-            json.dump(aggregateJson, aggregate_file)
-        #        json.dump(districtPrecipStats, json_file)
-        aggregate_file.close()
-
-        s3.Bucket(data_bucket).upload_file("/tmp/" + request_id + "_aggregate.json",
-                                           aggregate_pathname + request_id + "_aggregate.json")
-
-    update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "complete",
-                       "All requested files successfully downloaded ", creation_time=creation_time_in)
-
-def get_tile_hv(lat, lon, data):
+def get_tile_hv(lon,lat, data):
     lat = 40.015
     lon = -105.2705
 
@@ -336,34 +231,6 @@ def is_valid(url):
     """
     parsed = urlparse(url)
     return bool(parsed.netloc) and bool(parsed.scheme)
-
-def get_all_website_links(url):
-    """
-    Returns all URLs listed on a page
-    """
-    # all URLs of `url`
-    urls = set()
-    # domain name of the URL without the protocol
-    domain_name = urlparse(url).netloc
-    soup = BeautifulSoup(requests.get(url).content, "html.parser")
-
-    for a_tag in soup.findAll("a"):
-        href = a_tag.attrs.get("href")
-        if href == "" or href is None:
-            # href empty tag
-            continue
-        # join the URL if it's relative (not absolute link)
-        href = urljoin(url, href)
-        parsed_href = urlparse(href)
-        # remove URL GET parameters, URL fragments, etc.
-        href = parsed_href.scheme + "://" + parsed_href.netloc + parsed_href.path
-        if not is_valid(href):
-            # not a valid URL
-            continue
-        urls.add(href)
-        #print("link: "+href)
-        print("path: "+parsed_href.path)
-    return urls
 
 def get_date_dirs(url, path_prefix):
     """
@@ -393,14 +260,15 @@ def get_date_dirs(url, path_prefix):
         #print("link: "+href)
         date_path = str_path[path_pos+len(path_prefix):len(str_path)-1].replace('.','-',2)
         #date_path = str_path[path_pos+len(path_prefix):len(str_path)-1]
-        print("date: "+date_path)
+        #print("date: "+date_path)
         dates.append(date_path)
 
     return dates
 
 def get_filenames(url, dates, tiles):
     """
-    Returns a list of filenames for the horiz and vert indices of the sinusoidal projection
+    Returns a list of filenames for the horiz and vert indices of the sinusoidal projection for the
+    specified list of dates known to have data (returned from get_date_dirs)
     """
     # all URLs of `url`
     files = []
@@ -427,49 +295,48 @@ def get_filenames(url, dates, tiles):
                 hv_pos = str_path.find(hv_str)
                 if hv_pos < 0 or not str_path.endswith('.hdf'):
                     continue
-                print("file: "+str_path)
-                files.append(str_path)
-
+                print("file: "+os.path.basename(str_path))
+                files.append(os.path.basename(str_path))
     return files
 
-def download_url(url,filename):
+def get_opendap_urls(opendap_site, opendap_dir, var_name, filenames):
+    # construct opendap url from info in MODIS filenames
+    # extract year, jday from filename
+    opendap_urls=[]
+    for filename in filenames:
+        year = filename.split('.')[1][1:5]
+        jday = filename.split('.')[1][5:8]
+        print ("year "+year + " jday "+jday)
+        od_url="http://" + opendap_site + '/' + opendap_dir + year + '/' + jday + '/' + filename + '?Latitude,Longitude,' + var_name
+        print("Opendap url: " + od_url)
+        opendap_urls.append(od_url)
 
-    s = requests.Session()
-    s.auth = auth
-
-    try:
-        r1 = s.request('get', url)
-        result = s.get(r1.url)
-        result.raise_for_status()
-        f = open(filename, 'wb')
-        f.write(result.content)
-        f.close()
-    except:
-        # update_status_on_s3(s3.Bucket(data_bucket),request_id, "download", "failed",
-        #                    "GES DISC retrieve results failed on file " + str(count)
-        #                    + " of " + str(numfiles) + ": " + str(result.status_code),
-        #                     creation_time=creation_time_in)
-        print('Error! could not download URL: '+url)
-        sys.exit(1)
-
-    # s3.Bucket(data_bucket).upload_file(tmpfn, "imerg/" + outfn)
-
+    # i.e. "http://ladsweb.modaps.eosdis.nasa.gov/opendap/hyrax/allData/6/MYD11B2/2020/097/MYD11B2.A2020097.h16v08.006.2020105174027.hdf?LST_Day_6km,LST_Night_6km,Latitude,Longitude"
+    return opendap_urls
 
 def main():
     event = {"dataset": "land_sfc_temperature", "org_unit": "district", "stat_type": "mean", "product": "MOD11B2",
                "var_name": "LST_Day_6km", "agg_period": "daily", "start_date": "2019-08-01T00:00:00.000Z",
                "end_date": "2019-08-31T00:00:00.000Z"}
+
+    # determine all of the tiles necessary to cover the desired region
+    # use geolocation data to determine bounding box and find all tiled contained within
     tiles = [[16,8]]
 
     modis_version = 6
     listing_site = 'e4ftl01.cr.usgs.gov'
+    opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
 
     modis_version_string = '{:03d}'.format(modis_version)
     print("modis_version_string "+modis_version_string)
     product = event['product']
     start_date = event['start_date'].split('T')[0]
     end_date = event['end_date'].split('T')[0]
+    var_name = event['var_name']
 
+    opendap_dir = 'opendap/hyrax/allData/'+str(modis_version)+'/'+product+'/'
+
+    # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
     if 'MOD' in product: # Terra
         sat_dir = "MOLT"
     elif 'MYD' in product: # Aqua
@@ -480,75 +347,219 @@ def main():
 
     listing_url = 'https://'+listing_site+'/' + sat_dir + '/' + product + '.' + modis_version_string+'/'
     print("listing_url: "+ listing_url)
-    #get_all_website_links(listing_url)
+
     #/MOLT/MOD11B2.006/
+    #  list directories (dates) under the direct file access site to get filenames and dates
+    #  for the satellite/product.version/ hierarchy, this gives us a list of available dates for the data
     all_dates = get_date_dirs(listing_url, '/'+sat_dir+'/'+product+'.'+modis_version_string+'/')
     use_dates = []
+    # step through the sorted dates to get discrete granule dates within specified time range
     for date in sorted(all_dates):
         if date >= start_date and date <= end_date:
             use_dates.append(date)
     print("use dates: ",use_dates)
 
-    filenames=get_filenames(listing_url,use_dates,tiles)
-    # for date in use_dates:
-    #     for tile in tiles:
-    #         files = get_filenames(listing_url+'/'+date.replace('-','.',2)+'/', tile[0], tile[1])
-
-
-    sys.exit(0)
-    #result = requests.get(listing_url)
-    #result.raise_for_status()
-    # print(result.text.splitlines())
-
-    # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
-
-    # determine all of the tiles necessary to cover the desired region
-
-    #  list directories (dates) under the direct file access site to get filenames and dates
-
     # set up opendap urls using filenames from direct access site.  With opendap we can request only the variables
     # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
+    filenames=get_filenames(listing_url,use_dates,tiles)
+    opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name, filenames)
 
-    # result = requests.get(staging_url)
-    # result.raise_for_status()
-    # print(result.text.splitlines())
+    # use netcdf to directly access the opendap URLS and return the variables we want
+    for opendap_url in opendap_urls:
+        nc = NetCDFFile(opendap_url)
+        variable = nc.variables[var_name][:]
+        scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+        lat = nc.variables['Latitude'][:]
+        lon = nc.variables['Longitude'][:]
+        print("Variable:  "+var_name+" ", ma.getdata(variable) * scale_factor)
+        # need to get masked values, and scale using attribute scale_factor
+        print("lat ", lat[0][0], "lon", lon[0][0])
 
-    #get_all_website_links(staging_url)
+        nc.close()
 
-    #download_url(test_url,"/home/dhis/tmp/MYD11B2.A2020097.h16v08.006.2020105174027.hdf")
+def lambda_handler(event, context):
+    #    product = 'GPM_3IMERGDE_06'
+    # use "Late" product
+    #product = 'GPM_3IMERGDL_06'
+    #varName = 'HQprecipitation'
+
+    test_count = 0
+    outputJson = {'dataValues' : []}
+
+    for record in event['Records']:
+        bucket = record['s3']['bucket']['name']
+        key = unquote_plus(record['s3']['object']['key'])
+
+#        input_json = load_json(bucket, key)
+        input_json = load_json_from_s3(s3.Bucket(bucket), key)
+        if "message" in input_json and input_json["message"] == "error":
+            update_status_on_s3(s3.Bucket(data_bucket),request_id, "aggregate", "failed",
+                               "load_json_from_s3 could not load " + key)
+            sys.exit(1)
+
+        dataset = input_json["dataset"]
+        org_unit = input_json["org_unit"]
+        agg_period = input_json["agg_period"]
+        request_id = input_json["request_id"]
+        print("request_id ", request_id)
+
+        start_date = input_json['start_date']
+        end_date = input_json['end_date']
+        #begTime = '2015-08-01T00:00:00.000Z'
+        #endTime = '2015-08-01T23:59:59.999Z'
+
+        minlon = input_json['min_lon']
+        maxlon = input_json['max_lon']
+        minlat = input_json['min_lat']
+        maxlat = input_json['max_lat']
+
+        # read MODIS Land sinusoidal tile boundaries from data file
+        # first seven rows contain header information
+        # bottom 3 rows are not data
+        data = np.genfromtxt('sn_bound_10deg.txt',
+                             skip_header=7,
+                             skip_footer=3)
+
+        # find all MODIS Land tiles containing the region of interest
+        #tiles = [[16, 8]]
+        tiles = []
+        min_h, min_v = get_tile_hv(minlon,maxlat, data)
+        max_h, max_v = get_tile_hv(maxlon,minlat, data)
+        for i in range(min_h,max_h):
+            for j in range(min_v,max_v):
+                tiles.append([i,j])
+
+        creation_time_in = input_json['creation_time']
+
+        geometryJson = load_json_from_s3(s3.Bucket(bucket), "requests/geometry/" + request_id +"_geometry.json")
+        if "message" in geometryJson and geometryJson["message"] == "error":
+            update_status_on_s3(s3.Bucket(bucket),request_id, "aggregate", "failed",
+                               "aggregate_imerge could not load geometry file " +
+                               "requests/geometry/" + request_id +"_geometry.json",
+                                creation_time=creation_time_in)
+            sys.exit(1)
+
+        # defaults
+        statType = 'mean'
+        product = 'MOD11B2'
+        varName = 'LST_Day_6km'
+        #currently hard coded, could add as parameters to support config file
+        modis_version = 6
+        listing_site = 'e4ftl01.cr.usgs.gov'
+        opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
+        opendap_path = 'opendap/hyrax/allData/'
+
+        if "stat_type" in input_json:
+            statType = input_json['stat_type']
+        print('stat_type' + statType)
+        if "product" in input_json:
+            product = input_json['product']
+        print('product' + product)
+        if "var_name" in input_json:
+            varName = input_json['var_name']
+        print('var_name' + varName)
+
+        data_element_id = input_json['data_element_id']
+
+        modis_version_string = '{:03d}'.format(modis_version)
+        print("modis_version_string " + modis_version_string)
+        product = event['product']
+        start_date = event['start_date'].split('T')[0]
+        end_date = event['end_date'].split('T')[0]
+        var_name = event['var_name']
+
+        opendap_dir = opendap_path + str(modis_version) + '/' + product + '/'
+
+        # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
+        if 'MOD' in product:  # Terra
+            sat_dir = "MOLT"
+        elif 'MYD' in product:  # Aqua
+            sat_dir = "MOLA"
+        else:
+            print('Error! unknown product : ' + product)
+            sys.exit(1)
+
+        listing_url = 'https://' + listing_site + '/' + sat_dir + '/' + product + '.' + modis_version_string + '/'
+        print("listing_url: " + listing_url)
+
+        # /MOLT/MOD11B2.006/
+        #  list directories (dates) under the direct file access site to get filenames and dates
+        #  for the satellite/product.version/ hierarchy, this gives us a list of available dates for the data
+        update_status_on_s3(s3.Bucket(data_bucket), request_id,
+                            "aggregate", "working", "Searching for avaialable dates",
+                            creation_time=creation_time_in)
+
+        all_dates = get_date_dirs(listing_url, '/' + sat_dir + '/' + product + '.' + modis_version_string + '/')
+        use_dates = []
+        # step through the sorted dates to get discrete granule dates within specified time range
+        for date in sorted(all_dates):
+            if date >= start_date and date <= end_date:
+                use_dates.append(date)
+        print("use dates: ", use_dates)
+
+        # set up opendap urls using filenames from direct access site.  With opendap we can request only the variables
+        # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
+        update_status_on_s3(s3.Bucket(data_bucket), request_id,
+                            "aggregate", "working", "retrieving filenames",
+                            creation_time=creation_time_in)
+        filenames = get_filenames(listing_url, use_dates, tiles)
+        update_status_on_s3(s3.Bucket(data_bucket), request_id,
+                            "aggregate", "working", "Constructing OpenDAP URLs",
+                            creation_time=creation_time_in)
+        opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name, filenames)
+
+        # use netcdf to directly access the opendap URLS and return the variables we want
+        numFiles = len(opendap_urls)
+        fileCnt = 1
+        for opendap_url in opendap_urls:
+            update_status_on_s3(s3.Bucket(data_bucket), request_id,
+                                "aggregate", "working", "Aggregating file "+str(fileCnt)+" of "+ str(numFiles),
+                                creation_time=creation_time_in)
+            nc = NetCDFFile(opendap_url)
+            variable = nc.variables[var_name][:]
+            scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+            lat = nc.variables['Latitude'][:]
+            lon = nc.variables['Longitude'][:]
+            print("Variable:  " + var_name + " ", ma.getdata(variable) * scale_factor)
+            # need to get masked values, and scale using attribute scale_factor
+            print("lat ", lat[0][0], "lon", lon[0][0])
+            fileCnt = fileCnt + 1
+            nc.close()
+
+            jsonRecords = process_file(geometryJson, data_element_id, statType, variable, opendap_url)
+            for record in jsonRecords:
+                outputJson['dataValues'].append(record)
+            count = count + 1
+        with open("/tmp/" +request_id+"_result.json", 'w') as result_file:
+            json.dump(outputJson, result_file)
+        result_file.close()
+
+        s3.Bucket(bucket).upload_file("/tmp/" + request_id+"_result.json", "results/" +request_id+".json")
 
 
+        # download_results=download_imerg(subset_request, request_id, creation_time_in)
+        #
+        # # need error check on download_imerg
+        #
+        # # write out file list as json file into monitored s3 bucket to trigger aggregation
+        # # format new json structure
+        # aggregateJson = {"request_id": request_id, "data_element_id": data_element_id, "variable": varName,
+        #                  "dataset": dataset, "org_unit": org_unit, "agg_period": agg_period,
+        #                  "s3bucket": data_bucket, "files": download_results, "stat_type":statType,
+        #                  "creation_time":creation_time_in}
+        #
+        # aggregate_pathname = "requests/aggregate/precipitation/"
+        #
+        # with open("/tmp/" + request_id + "_aggregate.json", 'w') as aggregate_file:
+        #     json.dump(aggregateJson, aggregate_file)
+        # #        json.dump(districtVariableStats, json_file)
+        # aggregate_file.close()
+        #
+        #s3.Bucket(data_bucket).upload_file("/tmp/" + request_id + "_aggregate.json",
+        #                                   aggregate_pathname + request_id + "_aggregate.json")
 
-
-    # first seven rows contain header information
-    # bottom 3 rows are not data
-    data = np.genfromtxt('sn_bound_10deg.txt',
-                         skip_header=7,
-                         skip_footer=3)
-
-    staging_url = 'https://e4ftl01.cr.usgs.gov/MOLA/MYD11B2.006/'
-
-    test_url = 'https://e4ftl01.cr.usgs.gov/MOLA/MYD11B2.006/2020.04.06/MYD11B2.A2020097.h16v08.006.2020105174027.hdf'
-
-
-    modis_data_product='MYD11B2'
-    year='2020'
-    day='097'
-    test_od = "http://ladsweb.modaps.eosdis.nasa.gov/opendap/hyrax/allData/6/MYD11B2/2020/097/MYD11B2.A2020097.h16v08.006.2020105174027.hdf?LST_Day_6km,LST_Night_6km,Latitude,Longitude"
-    nc = NetCDFFile(test_od)
-    day_temp = nc.variables['LST_Day_6km'][:]
-    night_temp = nc.variables['LST_Night_6km'][:]
-    scale_factor = getattr(nc.variables['LST_Night_6km'],'scale_factor')
-    lat = nc.variables['Latitude'][:]
-    lon = nc.variables['Longitude'][:]
-    print ("night_temp ", ma.getdata(night_temp)*scale_factor)
-    # need to get masked values, and scale using attribute scale_factor
-    print ("lat ", lat[0][0], "lon", lon[0][0])
-
-    nc.close()
-
-
-    #fn = '/home/dhis/tmp/MYD11B2.A2020097.h16v08.006.2020105174027.hdf'
+    update_status_on_s3(s3.Bucket(data_bucket),request_id, "aggregate", "complete",
+                       "All requested files successfully aggregated", creation_time=creation_time_in)
 
 
 if __name__ == '__main__':
