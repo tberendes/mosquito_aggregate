@@ -114,7 +114,8 @@ def lambda_handler(event, context):
         downloadJson["var_name"]=var_name
 
     download_param_pathname = ""
-    if dataset.lower() == 'precipitation':
+    if dataset.lower() == 'precipitation' or dataset.lower() == 'temperature' \
+            or dataset.lower() == 'vegetation':
         download_param_pathname="requests/download/"+dataset+ "/"
         #set up download_imerg data
     else:

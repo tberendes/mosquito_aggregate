@@ -24,30 +24,67 @@ auth = ('mosquito2019', 'Malafr#1')
 
 s3 = boto3.resource(
     's3')
-def accumVariableByDistrict(polylist, variable, lat, lon, districtVariable, minlat, minlon, maxlat, maxlon):
+# def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable, minlat, minlon, maxlat, maxlon):
+#
+#     for poly in polylist:
+#         if poly.get_label() not in districtVariable.keys():
+#             districtVariable[poly.get_label()] = []
+#         #        for ptLat,ptLon,val in lat,lon,Variable:
+#         #        print("poly ", poly.get_label())
+#         for i in range(lon.shape[0]):
+#             for j in range(lon.shape[1]):
+#                 if not mask[i][j]:
+#                     continue
+#                 if lon[i][j] < minlon or lon[i][j] > maxlon:
+#                     continue
+#                 #            print("i ",i)
+#                 if lat[i][j] < minlat or lat[i][j] > maxlat:
+#                     continue
+#                 #                print("j ",j)
+#                 #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
+#                 path = mpltPath.Path(poly.xy)
+#                 inside = path.contains_point((lon[i][j], lat[i][j]))
+#                 if inside:
+#                     # add Variable value to district
+#                     if variable[i][j] >= 0.0:
+#                         districtVariable[poly.get_label()].append(float(variable[i][j]))
+#                     else:
+#                         districtVariable[poly.get_label()].append(0.0)
+# #                    im.putpixel((i,height-1-j),(r, g, b))
+# #                    print("lat ", lat[j], " lon ", lon[i], " variable ", variable[i][j], " inside ", poly.get_label())
+def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable, minlat, minlon, maxlat, maxlon):
 
     for poly in polylist:
         if poly.get_label() not in districtVariable.keys():
             districtVariable[poly.get_label()] = []
         #        for ptLat,ptLon,val in lat,lon,Variable:
         #        print("poly ", poly.get_label())
-        for i in range(lon.shape[0]):
-            for j in range(lon.shape[1]):
-                if lon[i][j] < minlon or lon[i][j] > maxlon:
-                    continue
-                #            print("i ",i)
-                if lat[i][j] < minlat or lat[i][j] > maxlat:
-                    continue
-                #                print("j ",j)
-                #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
+    #print("lon.shape[0] ", lon.shape[0])
+    #print("lon.shape[1] ", lon.shape[1])
+    for i in range(lon.shape[0]):
+        for j in range(lon.shape[1]):
+            if not mask[i][j]:
+                continue
+            if lon[i][j] < minlon or lon[i][j] > maxlon:
+                continue
+            #            print("i ",i)
+            if lat[i][j] < minlat or lat[i][j] > maxlat:
+                continue
+            #                print("j ",j)
+            #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
+            for poly in polylist:
                 path = mpltPath.Path(poly.xy)
                 inside = path.contains_point((lon[i][j], lat[i][j]))
                 if inside:
                     # add Variable value to district
-                    if variable[i][j] >= 0.0:
+                    # need to change this to check against a fill value
+                    if variable[i][j] > 0.0:
                         districtVariable[poly.get_label()].append(float(variable[i][j]))
-                    else:
-                        districtVariable[poly.get_label()].append(0.0)
+                    # values of zero or below are missing, cloud contamination in 8day composite, do not use
+                    # else:
+                    #     districtVariable[poly.get_label()].append(0.0)
+                    break # only allow membership in one polygon, doesn't allow for overlapping regions
+
 #                    im.putpixel((i,height-1-j),(r, g, b))
 #                    print("lat ", lat[j], " lon ", lon[i], " variable ", variable[i][j], " inside ", poly.get_label())
 
@@ -98,21 +135,23 @@ def process_file(geometry, dataElement, statType, var_name, opendapUrl):
     nc = NetCDFFile(opendapUrl)
     variable = nc.variables[var_name][:]
     scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+    print("scale_factor", scale_factor)
+    modis_var = ma.getdata(variable) * scale_factor
+
     lat = nc.variables['Latitude'][:]
     lon = nc.variables['Longitude'][:]
-    print("Variable:  " + var_name + " ", ma.getdata(variable) * scale_factor)
+    print("Variable:  " + var_name + " ", modis_var)
     # need to get masked values, and scale using attribute scale_factor
+
     print("lat ", lat[0][0], "lon", lon[0][0])
-    nc.close()
 
     # strip out yyyyddd from opendap url
-    tempStr = opendapUrl.split('.')[1]
-    year = tempStr[1:5]
-    days = tempStr[5:8]
+    tempStr = os.path.basename(opendapUrl).split('.')[1]
+    year = int(tempStr[1:5])
+    days = int(tempStr[5:8])
+    print("year "+str(year)+ " days "+str(days))
     startTime = datetime.datetime(year, 1, 1) + datetime.timedelta(days - 1)
     dateStr = startTime.strftime("%Y%m%d")
-
-    modis_var = nc.variables[var_name][:]
 
     # globals for Variable values and stats by district
     districtVariable = {}
@@ -159,7 +198,7 @@ def process_file(geometry, dataElement, statType, var_name, opendapUrl):
             "because of unknown type", shape["type"]
         # compute statisics
 #        accumVariableByDistrict(distPoly, variable, lat, lon, districtVariable,minlat,minlon,maxlat,maxlon,im)
-        accumVariableByDistrict(distPoly, modis_var, lat, lon, districtVariable,minlat,minlon,maxlat,maxlon)
+        accumVariableByDistrict(distPoly, modis_var, ma.getmask(variable), lat, lon, districtVariable,minlat,minlon,maxlat,maxlon)
         districtPolygons[dist_id] = distPoly
 
     calcDistrictStats(districtVariable, districtVariableStats)
@@ -211,9 +250,6 @@ def load_json(bucket, key):
     return jsonData
 
 def get_tile_hv(lon,lat, data):
-    lat = 40.015
-    lon = -105.2705
-
     in_tile = False
     i = 0
     # find vertical and horizontal tile containing lat/lon point
@@ -223,7 +259,7 @@ def get_tile_hv(lon,lat, data):
     vert = data[i - 1, 0]
     horiz = data[i - 1, 1]
     print('Horizontal Tile: ', horiz,' Vertical Tile: ', vert)
-    return horiz, vert
+    return int(horiz), int(vert)
 
 def is_valid(url):
     """
@@ -276,7 +312,9 @@ def get_filenames(url, dates, tiles):
     soup = BeautifulSoup(requests.get(url).content, "html.parser")
 
     for date in dates:
-        directory = url+'/' + date.replace('-', '.', 2) + '/'
+        #directory = url+'/' + date.replace('-', '.', 2) + '/'
+        directory = url + date.replace('-', '.', 2) + '/'
+        print("directory: "+directory)
         soup = BeautifulSoup(requests.get(directory).content, "html.parser")
         for tile in tiles:
             date_str = date.replace('-','.',2)
@@ -284,6 +322,7 @@ def get_filenames(url, dates, tiles):
             print("hv "+hv_str)
             for a_tag in soup.findAll("a"):
                 href = a_tag.attrs.get("href")
+                #print("href: ",href)
                 if href == "" or href is None:
                     # href empty tag
                     continue
@@ -315,7 +354,7 @@ def get_opendap_urls(opendap_site, opendap_dir, var_name, filenames):
     return opendap_urls
 
 def main():
-    event = {"dataset": "land_sfc_temperature", "org_unit": "district", "stat_type": "mean", "product": "MOD11B2",
+    event = {"dataset": "temperature", "org_unit": "district", "stat_type": "mean", "product": "MOD11B2",
                "var_name": "LST_Day_6km", "agg_period": "daily", "start_date": "2019-08-01T00:00:00.000Z",
                "end_date": "2019-08-31T00:00:00.000Z"}
 
@@ -334,7 +373,8 @@ def main():
     end_date = event['end_date'].split('T')[0]
     var_name = event['var_name']
 
-    opendap_dir = 'opendap/hyrax/allData/'+str(modis_version)+'/'+product+'/'
+    #opendap_dir = 'opendap/hyrax/allData/'+str(modis_version)+'/'+product+'/'
+    opendap_dir = 'opendap/allData/'+str(modis_version)+'/'+product+'/'
 
     # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
     if 'MOD' in product: # Terra
@@ -425,10 +465,14 @@ def lambda_handler(event, context):
         tiles = []
         min_h, min_v = get_tile_hv(minlon,maxlat, data)
         max_h, max_v = get_tile_hv(maxlon,minlat, data)
-        for i in range(min_h,max_h):
-            for j in range(min_v,max_v):
+        print("min_h ",min_h)
+        print("max_h ",max_h)
+        print("min_v ",min_v)
+        print("max_v ",max_v)
+        for i in range(min_h,max_h+1):
+            for j in range(min_v,max_v+1):
                 tiles.append([i,j])
-
+        print("tiles: ", tiles)
         creation_time_in = input_json['creation_time']
 
         geometryJson = load_json_from_s3(s3.Bucket(bucket), "requests/geometry/" + request_id +"_geometry.json")
@@ -447,11 +491,12 @@ def lambda_handler(event, context):
         modis_version = 6
         listing_site = 'e4ftl01.cr.usgs.gov'
         opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
-        opendap_path = 'opendap/hyrax/allData/'
+        #opendap_path = 'opendap/hyrax/allData/'
+        opendap_path = 'opendap/allData/'
 
         if "stat_type" in input_json:
             statType = input_json['stat_type']
-        print('stat_type' + statType)
+        print('stat_type ' + statType)
         if "product" in input_json:
             product = input_json['product']
         print('product' + product)
@@ -463,10 +508,10 @@ def lambda_handler(event, context):
 
         modis_version_string = '{:03d}'.format(modis_version)
         print("modis_version_string " + modis_version_string)
-        product = event['product']
-        start_date = event['start_date'].split('T')[0]
-        end_date = event['end_date'].split('T')[0]
-        var_name = event['var_name']
+        product = input_json['product']
+        start_date = input_json['start_date'].split('T')[0]
+        end_date = input_json['end_date'].split('T')[0]
+        var_name = input_json['var_name']
 
         opendap_dir = opendap_path + str(modis_version) + '/' + product + '/'
 
@@ -507,7 +552,7 @@ def lambda_handler(event, context):
                             "aggregate", "working", "Constructing OpenDAP URLs",
                             creation_time=creation_time_in)
         opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name, filenames)
-
+        print("opendap_urls: ", opendap_urls)
         # use netcdf to directly access the opendap URLS and return the variables we want
         numFiles = len(opendap_urls)
         fileCnt = 1
@@ -515,50 +560,28 @@ def lambda_handler(event, context):
             update_status_on_s3(s3.Bucket(data_bucket), request_id,
                                 "aggregate", "working", "Aggregating file "+str(fileCnt)+" of "+ str(numFiles),
                                 creation_time=creation_time_in)
-            nc = NetCDFFile(opendap_url)
-            variable = nc.variables[var_name][:]
-            scale_factor = getattr(nc.variables[var_name], 'scale_factor')
-            lat = nc.variables['Latitude'][:]
-            lon = nc.variables['Longitude'][:]
-            print("Variable:  " + var_name + " ", ma.getdata(variable) * scale_factor)
-            # need to get masked values, and scale using attribute scale_factor
-            print("lat ", lat[0][0], "lon", lon[0][0])
-            fileCnt = fileCnt + 1
-            nc.close()
+            # nc = NetCDFFile(opendap_url)
+            # variable = nc.variables[var_name][:]
+            # scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+            # lat = nc.variables['Latitude'][:]
+            # lon = nc.variables['Longitude'][:]
+            # print("Variable:  " + var_name + " ", ma.getdata(variable) * scale_factor)
+            # # need to get masked values, and scale using attribute scale_factor
+            # print("lat ", lat[0][0], "lon", lon[0][0])
+            # fileCnt = fileCnt + 1
+            # nc.close()
 
-            jsonRecords = process_file(geometryJson, data_element_id, statType, variable, opendap_url)
+            jsonRecords = process_file(geometryJson, data_element_id, statType, var_name, opendap_url)
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
-            count = count + 1
+            fileCnt = fileCnt + 1
         with open("/tmp/" +request_id+"_result.json", 'w') as result_file:
             json.dump(outputJson, result_file)
         result_file.close()
 
         s3.Bucket(bucket).upload_file("/tmp/" + request_id+"_result.json", "results/" +request_id+".json")
 
-
-        # download_results=download_imerg(subset_request, request_id, creation_time_in)
-        #
-        # # need error check on download_imerg
-        #
-        # # write out file list as json file into monitored s3 bucket to trigger aggregation
-        # # format new json structure
-        # aggregateJson = {"request_id": request_id, "data_element_id": data_element_id, "variable": varName,
-        #                  "dataset": dataset, "org_unit": org_unit, "agg_period": agg_period,
-        #                  "s3bucket": data_bucket, "files": download_results, "stat_type":statType,
-        #                  "creation_time":creation_time_in}
-        #
-        # aggregate_pathname = "requests/aggregate/precipitation/"
-        #
-        # with open("/tmp/" + request_id + "_aggregate.json", 'w') as aggregate_file:
-        #     json.dump(aggregateJson, aggregate_file)
-        # #        json.dump(districtVariableStats, json_file)
-        # aggregate_file.close()
-        #
-        #s3.Bucket(data_bucket).upload_file("/tmp/" + request_id + "_aggregate.json",
-        #                                   aggregate_pathname + request_id + "_aggregate.json")
-
-    update_status_on_s3(s3.Bucket(data_bucket),request_id, "aggregate", "complete",
+    update_status_on_s3(s3.Bucket(data_bucket),request_id, "aggregate", "success",
                        "All requested files successfully aggregated", creation_time=creation_time_in)
 
 
