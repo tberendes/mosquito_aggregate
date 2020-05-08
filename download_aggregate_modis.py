@@ -52,7 +52,8 @@ s3 = boto3.resource(
 #                         districtVariable[poly.get_label()].append(0.0)
 # #                    im.putpixel((i,height-1-j),(r, g, b))
 # #                    print("lat ", lat[j], " lon ", lon[i], " variable ", variable[i][j], " inside ", poly.get_label())
-def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable, minlat, minlon, maxlat, maxlon):
+def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable, minlat, minlon, maxlat, maxlon,
+                            valid_min, valid_max):
 
     for poly in polylist:
         if poly.get_label() not in districtVariable.keys():
@@ -63,8 +64,10 @@ def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable
     #print("lon.shape[1] ", lon.shape[1])
     for i in range(lon.shape[0]):
         for j in range(lon.shape[1]):
-            if not mask[i][j]:
-                continue
+            # mask is not reliable, used for NDVI, but not for LST, for now we will not use it
+            #if not mask[i][j]:
+            # if mask[i][j]:
+            #     continue
             if lon[i][j] < minlon or lon[i][j] > maxlon:
                 continue
             #            print("i ",i)
@@ -72,14 +75,16 @@ def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable
                 continue
             #                print("j ",j)
             #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
+            if variable[i][j] < valid_min or variable[i][j] > valid_max:
+                continue
             for poly in polylist:
                 path = mpltPath.Path(poly.xy)
                 inside = path.contains_point((lon[i][j], lat[i][j]))
                 if inside:
                     # add Variable value to district
                     # need to change this to check against a fill value
-                    if variable[i][j] > 0.0:
-                        districtVariable[poly.get_label()].append(float(variable[i][j]))
+                    #if variable[i][j] >= valid_min and variable[i][j] <= valid_max:
+                    districtVariable[poly.get_label()].append(float(variable[i][j]))
                     # values of zero or below are missing, cloud contamination in 8day composite, do not use
                     # else:
                     #     districtVariable[poly.get_label()].append(0.0)
@@ -88,7 +93,8 @@ def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable
 #                    im.putpixel((i,height-1-j),(r, g, b))
 #                    print("lat ", lat[j], " lon ", lon[i], " variable ", variable[i][j], " inside ", poly.get_label())
 
-def calcDistrictStats(districtVariable, districtVariableStats):
+def calcDistrictStats(districtVariable):
+    districtVariableStats = {}
     for dist in districtVariable.keys():
         if dist not in districtVariableStats.keys():
             districtVariableStats[dist] = {}
@@ -100,10 +106,10 @@ def calcDistrictStats(districtVariable, districtVariableStats):
             maxval = max(districtVariable[dist])
             minval = min(districtVariable[dist])
         else:
-            mean = 0.0
-            median = 0.0
-            maxval = 0.0
-            minval = 0.0
+            mean = -9999.0
+            median = -9999.0
+            maxval = -9999.0
+            minval = -9999.0
         #        meadian_high = statistics.median_high(districtVariable[dist])
         #        meadian_low = statistics.median_low(districtVariable[dist])
         #        std_dev = statistics.stdev(districtVariable[dist])
@@ -115,7 +121,7 @@ def calcDistrictStats(districtVariable, districtVariableStats):
             ('min', minval),
             ('count', len(districtVariable[dist]))
         ])
-
+    return districtVariableStats
 
 def find_maxmin_latlon(lat,lon,minlat,minlon,maxlat,maxlon):
     if lat > maxlat:
@@ -128,100 +134,124 @@ def find_maxmin_latlon(lat,lon,minlat,minlon,maxlat,maxlon):
         minlon = lon
     return minlat,minlon,maxlat,maxlon
 
-def process_file(geometry, dataElement, statType, var_name, opendapUrl):
+def process_files(geometry, dataElement, statType, var_name, opendapUrls):
 
-    districts = geometry["boundaries"]
-
-    nc = NetCDFFile(opendapUrl)
-    variable = nc.variables[var_name][:]
-    scale_factor = getattr(nc.variables[var_name], 'scale_factor')
-    print("scale_factor", scale_factor)
-    modis_var = ma.getdata(variable) * scale_factor
-
-    lat = nc.variables['Latitude'][:]
-    lon = nc.variables['Longitude'][:]
-    print("Variable:  " + var_name + " ", modis_var)
-    # need to get masked values, and scale using attribute scale_factor
-
-    print("lat ", lat[0][0], "lon", lon[0][0])
-
-    # strip out yyyyddd from opendap url
-    tempStr = os.path.basename(opendapUrl).split('.')[1]
-    year = int(tempStr[1:5])
-    days = int(tempStr[5:8])
-    print("year "+str(year)+ " days "+str(days))
-    startTime = datetime.datetime(year, 1, 1) + datetime.timedelta(days - 1)
-    dateStr = startTime.strftime("%Y%m%d")
-
-    # globals for Variable values and stats by district
+    # dictionaries for computing stats by district
     districtVariable = {}
-    districtVariableStats = {}
+    #districtVariableStats = {}
     districtPolygons = {}
 
-#    im = PIL.Image.new(mode="RGB", size=(lon.shape[0], lat.shape[0]), color=(255, 255, 255))
+    districts = geometry["boundaries"]
+    dateStr = ""
+    # all urls are for the same date
+    for opendapUrl in opendapUrls:
+        nc = NetCDFFile(opendapUrl)
+        # auto scale doesn't seem to work on temp data, so set to false and manually scale
+        nc.set_auto_scale(False)
+        variable = nc.variables[var_name][:]
+        print("variable.data:  " + var_name + " ", variable.data)
+        mask = ma.getmask(variable)
+        scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+        print("scale_factor", scale_factor)
+        add_offset = getattr(nc.variables[var_name], 'add_offset')
+        print("add_offset", add_offset)
+        #modis_var = ma.getdata(variable)
+        modis_var = ma.getdata(variable) * scale_factor+add_offset
+        print("scaled variable:  " + var_name + " ", modis_var)
+        valid_range = getattr(nc.variables[var_name], 'valid_range')
+        print("valid_range", valid_range)
+        valid_min=float(valid_range[0])*scale_factor+add_offset
+        valid_max=float(valid_range[1])*scale_factor+add_offset
+        if valid_max < valid_min: # unsigned short int interpreted as negative
+            print("valid_max < valid_min, converting from unsigned short...")
+            valid_max = float(int(valid_range[1]& 0xffff))*scale_factor+add_offset
 
-    for district in districts:
-        shape = district['geometry']
-        coords = district['geometry']['coordinates']
- #       name = district['properties']['name']
-        name = district['name']
-        dist_id = district['id']
+        print("valid_min ", valid_min)
+        print("valid_max ", valid_max)
 
-        def handle_subregion(subregion):
-#            poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=name)
-            poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=dist_id)
-            return poly
+        lat = nc.variables['Latitude'][:]
+        lon = nc.variables['Longitude'][:]
+        # need to get masked values, and scale using attribute scale_factor
+        print("mask:  " + var_name + " ", mask)
 
-        distPoly = []
+        print("lat ", lat[0][0], "lon", lon[0][0])
+        print("lat.shape[0]", lat.shape[0])
+        print("lat.shape[1]", lat.shape[1])
 
-        minlat = 90.0
-        maxlat = -90.0
-        minlon = 180.0
-        maxlon = -180.0
-        if shape["type"] == "Polygon":
-            for subregion in coords:
-                distPoly.append(handle_subregion(subregion))
-                for coord in subregion:
-                    minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon, maxlat, maxlon)
-        elif shape["type"] == "MultiPolygon":
-            for subregion in coords:
-                #            print("subregion")
-                for sub1 in subregion:
-                    #                print("sub-subregion")
-                    distPoly.append(handle_subregion(sub1))
-                    for coord in sub1:
-                        minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon,
-                                                                        maxlat, maxlon)
-        else:
-            print
-            "Skipping", dist_id, \
-            "because of unknown type", shape["type"]
-        # compute statisics
-#        accumVariableByDistrict(distPoly, variable, lat, lon, districtVariable,minlat,minlon,maxlat,maxlon,im)
-        accumVariableByDistrict(distPoly, modis_var, ma.getmask(variable), lat, lon, districtVariable,minlat,minlon,maxlat,maxlon)
-        districtPolygons[dist_id] = distPoly
+        # strip out yyyyddd from opendap url
+        tempStr = os.path.basename(opendapUrl).split('.')[1]
+        year = int(tempStr[1:5])
+        days = int(tempStr[5:8])
+        print("year "+str(year)+ " days "+str(days))
+        startTime = datetime.datetime(year, 1, 1) + datetime.timedelta(days - 1)
+        dateStr = startTime.strftime("%Y%m%d")
 
-    calcDistrictStats(districtVariable, districtVariableStats)
+    #    im = PIL.Image.new(mode="RGB", size=(lon.shape[0], lat.shape[0]), color=(255, 255, 255))
+
+        for district in districts:
+            shape = district['geometry']
+            coords = district['geometry']['coordinates']
+     #       name = district['properties']['name']
+            name = district['name']
+            dist_id = district['id']
+
+            def handle_subregion(subregion):
+    #            poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=name)
+                poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=dist_id)
+                return poly
+
+            distPoly = []
+
+            minlat = 90.0
+            maxlat = -90.0
+            minlon = 180.0
+            maxlon = -180.0
+            if shape["type"] == "Polygon":
+                for subregion in coords:
+                    distPoly.append(handle_subregion(subregion))
+                    for coord in subregion:
+                        minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon, maxlat, maxlon)
+            elif shape["type"] == "MultiPolygon":
+                for subregion in coords:
+                    #            print("subregion")
+                    for sub1 in subregion:
+                        #                print("sub-subregion")
+                        distPoly.append(handle_subregion(sub1))
+                        for coord in sub1:
+                            minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon,
+                                                                            maxlat, maxlon)
+            else:
+                print
+                "Skipping", dist_id, \
+                "because of unknown type", shape["type"]
+            # compute statisics
+    #        accumVariableByDistrict(distPoly, variable, lat, lon, districtVariable,minlat,minlon,maxlat,maxlon,im)
+            accumVariableByDistrict(distPoly, modis_var, mask, lat, lon,
+                                    districtVariable,minlat,minlon,maxlat,maxlon,
+                                    valid_min, valid_max)
+            districtPolygons[dist_id] = distPoly
+
+
+        #    print("finished file " + key)
+        nc.close()
+        # output image
+    #    im.save('/tmp/sl_img.jpg', quality=95)
+    #    s3.Bucket(s3_bucket).upload_file("/tmp/sl_img.jpg", "test/" + "sl_img.jpg")
+
+    # reformat new json structure
+#    outputJson = {'dataValues' : []}
+    districtVariableStats = calcDistrictStats(districtVariable)
     for district in districts:
        # name = district['properties']['name']
         dist_id = district['id']
         name = district['name']
-#        print("district name ", name)
-#        print("district id", dist_id)
-#        print("mean Variable ", districtVariableStats[dist_id]['mean'])
-#        print("median Variable ", districtVariableStats[dist_id]['median'])
-#        print("max Variable ", districtVariableStats[dist_id]['max'])
-#        print("min Variable ", districtVariableStats[dist_id]['min'])
-#        print("count ", districtVariableStats[dist_id]['count'])
-
-    #    print("finished file " + key)
-    nc.close()
-    # output image
-#    im.save('/tmp/sl_img.jpg', quality=95)
-#    s3.Bucket(s3_bucket).upload_file("/tmp/sl_img.jpg", "test/" + "sl_img.jpg")
-
-    # reformat new json structure
-#    outputJson = {'dataValues' : []}
+        print("district name ", name)
+        print("district id", dist_id)
+        print("mean Variable ", districtVariableStats[dist_id]['mean'])
+        print("median Variable ", districtVariableStats[dist_id]['median'])
+        print("max Variable ", districtVariableStats[dist_id]['max'])
+        print("min Variable ", districtVariableStats[dist_id]['min'])
+        print("count ", districtVariableStats[dist_id]['count'])
     outputJson = []
     for key in districtVariableStats.keys():
         value = districtVariableStats[key][statType]
@@ -307,11 +337,15 @@ def get_filenames(url, dates, tiles):
     specified list of dates known to have data (returned from get_date_dirs)
     """
     # all URLs of `url`
-    files = []
+    # create dictionary of file lists by dates
+    files = {}
+    #files = []
     # domain name of the URL without the protocol
     soup = BeautifulSoup(requests.get(url).content, "html.parser")
 
     for date in dates:
+        if date not in files:
+            files[date] = []
         #directory = url+'/' + date.replace('-', '.', 2) + '/'
         directory = url + date.replace('-', '.', 2) + '/'
         print("directory: "+directory)
@@ -335,87 +369,94 @@ def get_filenames(url, dates, tiles):
                 if hv_pos < 0 or not str_path.endswith('.hdf'):
                     continue
                 print("file: "+os.path.basename(str_path))
-                files.append(os.path.basename(str_path))
+                files[date].append(os.path.basename(str_path))
     return files
 
-def get_opendap_urls(opendap_site, opendap_dir, var_name, filenames):
+def get_opendap_urls(opendap_site, opendap_dir, var_name, x_start_stride_stop, y_start_stride_stop, filenames):
     # construct opendap url from info in MODIS filenames
     # extract year, jday from filename
-    opendap_urls=[]
-    for filename in filenames:
-        year = filename.split('.')[1][1:5]
-        jday = filename.split('.')[1][5:8]
-        print ("year "+year + " jday "+jday)
-        od_url="http://" + opendap_site + '/' + opendap_dir + year + '/' + jday + '/' + filename + '?Latitude,Longitude,' + var_name
-        print("Opendap url: " + od_url)
-        opendap_urls.append(od_url)
+    #opendap_urls=[]
+    opendap_urls= {}
+    for date in filenames.keys():
+        if date not in opendap_urls:
+            opendap_urls[date]=[]
+        for filename in filenames[date]:
+            year = filename.split('.')[1][1:5]
+            jday = filename.split('.')[1][5:8]
+            print ("year "+year + " jday "+jday)
+            od_url="http://" + opendap_site + '/' + opendap_dir + year + '/' + jday + '/' + filename \
+                   + '?Latitude'+x_start_stride_stop+y_start_stride_stop\
+                   + ',Longitude'+x_start_stride_stop+y_start_stride_stop+',' \
+                   + var_name + x_start_stride_stop+y_start_stride_stop
+            print("Opendap url: " + od_url)
+            opendap_urls[date].append(od_url)
 
     # i.e. "http://ladsweb.modaps.eosdis.nasa.gov/opendap/hyrax/allData/6/MYD11B2/2020/097/MYD11B2.A2020097.h16v08.006.2020105174027.hdf?LST_Day_6km,LST_Night_6km,Latitude,Longitude"
     return opendap_urls
 
-def main():
-    event = {"dataset": "temperature", "org_unit": "district", "stat_type": "mean", "product": "MOD11B2",
-               "var_name": "LST_Day_6km", "agg_period": "daily", "start_date": "2019-08-01T00:00:00.000Z",
-               "end_date": "2019-08-31T00:00:00.000Z"}
-
-    # determine all of the tiles necessary to cover the desired region
-    # use geolocation data to determine bounding box and find all tiled contained within
-    tiles = [[16,8]]
-
-    modis_version = 6
-    listing_site = 'e4ftl01.cr.usgs.gov'
-    opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
-
-    modis_version_string = '{:03d}'.format(modis_version)
-    print("modis_version_string "+modis_version_string)
-    product = event['product']
-    start_date = event['start_date'].split('T')[0]
-    end_date = event['end_date'].split('T')[0]
-    var_name = event['var_name']
-
-    #opendap_dir = 'opendap/hyrax/allData/'+str(modis_version)+'/'+product+'/'
-    opendap_dir = 'opendap/allData/'+str(modis_version)+'/'+product+'/'
-
-    # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
-    if 'MOD' in product: # Terra
-        sat_dir = "MOLT"
-    elif 'MYD' in product: # Aqua
-        sat_dir = "MOLA"
-    else:
-        print('Error! unknown product : '+product)
-        sys.exit(1)
-
-    listing_url = 'https://'+listing_site+'/' + sat_dir + '/' + product + '.' + modis_version_string+'/'
-    print("listing_url: "+ listing_url)
-
-    #/MOLT/MOD11B2.006/
-    #  list directories (dates) under the direct file access site to get filenames and dates
-    #  for the satellite/product.version/ hierarchy, this gives us a list of available dates for the data
-    all_dates = get_date_dirs(listing_url, '/'+sat_dir+'/'+product+'.'+modis_version_string+'/')
-    use_dates = []
-    # step through the sorted dates to get discrete granule dates within specified time range
-    for date in sorted(all_dates):
-        if date >= start_date and date <= end_date:
-            use_dates.append(date)
-    print("use dates: ",use_dates)
-
-    # set up opendap urls using filenames from direct access site.  With opendap we can request only the variables
-    # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
-    filenames=get_filenames(listing_url,use_dates,tiles)
-    opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name, filenames)
-
-    # use netcdf to directly access the opendap URLS and return the variables we want
-    for opendap_url in opendap_urls:
-        nc = NetCDFFile(opendap_url)
-        variable = nc.variables[var_name][:]
-        scale_factor = getattr(nc.variables[var_name], 'scale_factor')
-        lat = nc.variables['Latitude'][:]
-        lon = nc.variables['Longitude'][:]
-        print("Variable:  "+var_name+" ", ma.getdata(variable) * scale_factor)
-        # need to get masked values, and scale using attribute scale_factor
-        print("lat ", lat[0][0], "lon", lon[0][0])
-
-        nc.close()
+# def main():
+#     event = {"dataset": "temperature", "org_unit": "district", "stat_type": "mean", "product": "MOD11B2",
+#                "var_name": "LST_Day_6km", "agg_period": "daily", "start_date": "2019-08-01T00:00:00.000Z",
+#                "end_date": "2019-08-31T00:00:00.000Z"}
+#
+#     # determine all of the tiles necessary to cover the desired region
+#     # use geolocation data to determine bounding box and find all tiled contained within
+#     tiles = [[16,8]]
+#
+#     modis_version = 6
+#     listing_site = 'e4ftl01.cr.usgs.gov'
+#     opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
+#
+#     modis_version_string = '{:03d}'.format(modis_version)
+#     print("modis_version_string "+modis_version_string)
+#     product = event['product']
+#     start_date = event['start_date'].split('T')[0]
+#     end_date = event['end_date'].split('T')[0]
+#     var_name = event['var_name']
+#
+#     #opendap_dir = 'opendap/hyrax/allData/'+str(modis_version)+'/'+product+'/'
+#     opendap_dir = 'opendap/allData/'+str(modis_version)+'/'+product+'/'
+#
+#     # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
+#     if 'MOD' in product: # Terra
+#         sat_dir = "MOLT"
+#     elif 'MYD' in product: # Aqua
+#         sat_dir = "MOLA"
+#     else:
+#         print('Error! unknown product : '+product)
+#         sys.exit(1)
+#
+#     listing_url = 'https://'+listing_site+'/' + sat_dir + '/' + product + '.' + modis_version_string+'/'
+#     print("listing_url: "+ listing_url)
+#
+#     #/MOLT/MOD11B2.006/
+#     #  list directories (dates) under the direct file access site to get filenames and dates
+#     #  for the satellite/product.version/ hierarchy, this gives us a list of available dates for the data
+#     all_dates = get_date_dirs(listing_url, '/'+sat_dir+'/'+product+'.'+modis_version_string+'/')
+#     use_dates = []
+#     # step through the sorted dates to get discrete granule dates within specified time range
+#     for date in sorted(all_dates):
+#         if date >= start_date and date <= end_date:
+#             use_dates.append(date)
+#     print("use dates: ",use_dates)
+#
+#     # set up opendap urls using filenames from direct access site.  With opendap we can request only the variables
+#     # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
+#     filenames=get_filenames(listing_url,use_dates,tiles)
+#     opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name, filenames)
+#
+#     # use netcdf to directly access the opendap URLS and return the variables we want
+#     for opendap_url in opendap_urls:
+#         nc = NetCDFFile(opendap_url)
+#         variable = nc.variables[var_name][:]
+#         scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+#         lat = nc.variables['Latitude'][:]
+#         lon = nc.variables['Longitude'][:]
+#         print("Variable:  "+var_name+" ", ma.getdata(variable) * scale_factor)
+#         # need to get masked values, and scale using attribute scale_factor
+#         print("lat ", lat[0][0], "lon", lon[0][0])
+#
+#         nc.close()
 
 def lambda_handler(event, context):
     #    product = 'GPM_3IMERGDE_06'
@@ -512,6 +553,12 @@ def lambda_handler(event, context):
         start_date = input_json['start_date'].split('T')[0]
         end_date = input_json['end_date'].split('T')[0]
         var_name = input_json['var_name']
+        x_start_stride_stop = ""
+        if "x_start_stride_stop" in input_json:
+            x_start_stride_stop = input_json["x_start_stride_stop"]
+        y_start_stride_stop = ""
+        if "y_start_stride_stop" in input_json:
+            y_start_stride_stop = input_json["y_start_stride_stop"]
 
         opendap_dir = opendap_path + str(modis_version) + '/' + product + '/'
 
@@ -551,30 +598,35 @@ def lambda_handler(event, context):
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "Constructing OpenDAP URLs",
                             creation_time=creation_time_in)
-        opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name, filenames)
+        opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name,
+                                        x_start_stride_stop, y_start_stride_stop, filenames)
         print("opendap_urls: ", opendap_urls)
         # use netcdf to directly access the opendap URLS and return the variables we want
-        numFiles = len(opendap_urls)
+        numFiles=0
+        for date in opendap_urls.keys():
+            numFiles = numFiles + len(opendap_urls[date])
+        numDates = len(opendap_urls.keys())
         fileCnt = 1
-        for opendap_url in opendap_urls:
+        for date in opendap_urls.keys():
             update_status_on_s3(s3.Bucket(data_bucket), request_id,
-                                "aggregate", "working", "Aggregating file "+str(fileCnt)+" of "+ str(numFiles),
+                                "aggregate", "working", "Aggregating file " + str(fileCnt) + " of " + str(numFiles),
                                 creation_time=creation_time_in)
-            # nc = NetCDFFile(opendap_url)
-            # variable = nc.variables[var_name][:]
-            # scale_factor = getattr(nc.variables[var_name], 'scale_factor')
-            # lat = nc.variables['Latitude'][:]
-            # lon = nc.variables['Longitude'][:]
-            # print("Variable:  " + var_name + " ", ma.getdata(variable) * scale_factor)
-            # # need to get masked values, and scale using attribute scale_factor
-            # print("lat ", lat[0][0], "lon", lon[0][0])
-            # fileCnt = fileCnt + 1
-            # nc.close()
+ #           for opendap_url in opendap_urls[date]:
+                # nc = NetCDFFile(opendap_url)
+                # variable = nc.variables[var_name][:]
+                # scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+                # lat = nc.variables['Latitude'][:]
+                # lon = nc.variables['Longitude'][:]
+                # print("Variable:  " + var_name + " ", ma.getdata(variable) * scale_factor)
+                # # need to get masked values, and scale using attribute scale_factor
+                # print("lat ", lat[0][0], "lon", lon[0][0])
+                # fileCnt = fileCnt + 1
+                # nc.close()
 
-            jsonRecords = process_file(geometryJson, data_element_id, statType, var_name, opendap_url)
+            jsonRecords = process_files(geometryJson, data_element_id, statType, var_name, opendap_urls[date])
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
-            fileCnt = fileCnt + 1
+            fileCnt = fileCnt + len(opendap_urls[date])
         with open("/tmp/" +request_id+"_result.json", 'w') as result_file:
             json.dump(outputJson, result_file)
         result_file.close()
@@ -585,5 +637,5 @@ def lambda_handler(event, context):
                        "All requested files successfully aggregated", creation_time=creation_time_in)
 
 
-if __name__ == '__main__':
-   main()
+# if __name__ == '__main__':
+#    main()

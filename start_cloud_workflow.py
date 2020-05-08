@@ -112,7 +112,10 @@ def lambda_handler(event, context):
         downloadJson["product"]=product
     if var_name != 'none':
         downloadJson["var_name"]=var_name
-
+    if 'x_start_stride_stop' in event:
+        downloadJson["x_start_stride_stop"] = event["x_start_stride_stop"]
+    if 'y_start_stride_stop' in event:
+        downloadJson["y_start_stride_stop"] = event["y_start_stride_stop"]
     download_param_pathname = ""
     if dataset.lower() == 'precipitation' or dataset.lower() == 'temperature' \
             or dataset.lower() == 'vegetation':
@@ -124,26 +127,25 @@ def lambda_handler(event, context):
                                                'Access-Control-Allow-Methods': 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'},
                     body=json.dumps({'message': "illegal dataset: " + dataset}), isBase64Encoded='false')
 
-    with open("/tmp/" +request_id+".json", 'w') as json_file:
-        json.dump(downloadJson, json_file)
-    #        json.dump(districtPrecipStats, json_file)
-    json_file.close()
-
-    s3.Bucket(data_bucket).upload_file("/tmp/" + request_id+".json", download_param_pathname +request_id+".json")
-
     # write out boundaries json file
     # format new json structure
     geometryJson = {"request_id": request_id, "boundaries": districts}
-
     geometry_pathname="requests/geometry/"
 
     with open("/tmp/" +request_id+"_geometry.json", 'w') as geometry_file:
         json.dump(geometryJson, geometry_file)
     #        json.dump(districtPrecipStats, json_file)
     geometry_file.close()
-
     s3.Bucket(data_bucket).upload_file("/tmp/" + request_id+"_geometry.json",
                                        geometry_pathname +request_id+"_geometry.json")
+
+    # write out download parameter file to S3 bucket to trigger download/aggregation
+    with open("/tmp/" +request_id+".json", 'w') as json_file:
+        json.dump(downloadJson, json_file)
+    #        json.dump(districtPrecipStats, json_file)
+    json_file.close()
+
+    s3.Bucket(data_bucket).upload_file("/tmp/" + request_id+".json", download_param_pathname +request_id+".json")
 
      # set a random jobID string for use in all subsequent processes
 #    return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
