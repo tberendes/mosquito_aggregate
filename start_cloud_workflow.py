@@ -116,6 +116,8 @@ def lambda_handler(event, context):
         downloadJson["x_start_stride_stop"] = event["x_start_stride_stop"]
     if 'y_start_stride_stop' in event:
         downloadJson["y_start_stride_stop"] = event["y_start_stride_stop"]
+    if 'dhis_dist_version' in event:
+        downloadJson["dhis_dist_version"] = event["dhis_dist_version"]
     download_param_pathname = ""
     if dataset.lower() == 'precipitation' or dataset.lower() == 'temperature' \
             or dataset.lower() == 'vegetation':

@@ -6,11 +6,8 @@ from urllib.parse import unquote_plus, urlparse, urljoin
 import datetime
 
 import numpy as np
-import pickle
-
 import requests
-import boto3
-import botocore
+import boto3 as boto3
 
 from numpy import ma
 from netCDF4 import Dataset as NetCDFFile
@@ -27,118 +24,6 @@ auth = ('mosquito2019', 'Malafr#1')
 
 s3 = boto3.resource(
     's3')
-# def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable, minlat, minlon, maxlat, maxlon):
-#
-#     for poly in polylist:
-#         if poly.get_label() not in districtVariable.keys():
-#             districtVariable[poly.get_label()] = []
-#         #        for ptLat,ptLon,val in lat,lon,Variable:
-#         #        print("poly ", poly.get_label())
-#         for i in range(lon.shape[0]):
-#             for j in range(lon.shape[1]):
-#                 if not mask[i][j]:
-#                     continue
-#                 if lon[i][j] < minlon or lon[i][j] > maxlon:
-#                     continue
-#                 #            print("i ",i)
-#                 if lat[i][j] < minlat or lat[i][j] > maxlat:
-#                     continue
-#                 #                print("j ",j)
-#                 #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
-#                 path = mpltPath.Path(poly.xy)
-#                 inside = path.contains_point((lon[i][j], lat[i][j]))
-#                 if inside:
-#                     # add Variable value to district
-#                     if variable[i][j] >= 0.0:
-#                         districtVariable[poly.get_label()].append(float(variable[i][j]))
-#                     else:
-#                         districtVariable[poly.get_label()].append(0.0)
-# #                    im.putpixel((i,height-1-j),(r, g, b))
-# #                    print("lat ", lat[j], " lon ", lon[i], " variable ", variable[i][j], " inside ", poly.get_label())
-def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable,
-                            minlat, minlon, maxlat, maxlon, valid_min, valid_max,district_i_j_list):
-
-    for poly in polylist:
-        if poly.get_label() not in districtVariable.keys():
-            districtVariable[poly.get_label()] = []
-        if poly.get_label() not in district_i_j_list.keys():
-            district_i_j_list[poly.get_label()] = []
-        #        for ptLat,ptLon,val in lat,lon,Variable:
-        #        print("poly ", poly.get_label())
-    #print("lon.shape[0] ", lon.shape[0])
-    #print("lon.shape[1] ", lon.shape[1])
-    for i in range(lon.shape[0]):
-        for j in range(lon.shape[1]):
-            # mask is not reliable, used for NDVI, but not for LST, for now we will not use it
-            #if not mask[i][j]:
-            # if mask[i][j]:
-            #     continue
-            if lon[i][j] < minlon or lon[i][j] > maxlon:
-                continue
-            #            print("i ",i)
-            if lat[i][j] < minlat or lat[i][j] > maxlat:
-                continue
-            #                print("j ",j)
-            #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
-            if variable[i][j] < valid_min or variable[i][j] > valid_max:
-                continue
-            for poly in polylist:
-                path = mpltPath.Path(poly.xy)
-                inside = path.contains_point((lon[i][j], lat[i][j]))
-                if inside:
-                    # add Variable value to district
-                    # need to change this to check against a fill value
-                    #if variable[i][j] >= valid_min and variable[i][j] <= valid_max:
-                    districtVariable[poly.get_label()].append(float(variable[i][j]))
-                    district_i_j_list[poly.get_label()].append([i,j])
-                    # values of zero or below are missing, cloud contamination in 8day composite, do not use
-                    # else:
-                    #     districtVariable[poly.get_label()].append(0.0)
-                    break # only allow membership in one polygon, doesn't allow for overlapping regions
-
-#                    im.putpixel((i,height-1-j),(r, g, b))
-#                    print("lat ", lat[j], " lon ", lon[i], " variable ", variable[i][j], " inside ", poly.get_label())
-    return
-def accumVariableByDictionary(variable, districtVariable, district_i_j_list,
-                            valid_min, valid_max):
-    for district, coords in district_i_j_list.items():
-        districtVariable[district] = []
-        for i_j in coords:
-            i = i_j[0]
-            j = i_j[1]
-            if variable[i][j] >= valid_min and variable[i][j] <= valid_max:
-                districtVariable[district].append(float(variable[i][j]))
-    return
-
-def calcDistrictStats(districtVariable):
-    districtVariableStats = {}
-    for dist in districtVariable.keys():
-        if dist not in districtVariableStats.keys():
-            districtVariableStats[dist] = {}
-        if len(districtVariable[dist]) > 0:
-            #            print('len ',len(districtVariable[dist]))
-            #            print('points ',districtVariable[dist])
-            mean = statistics.mean(districtVariable[dist])
-            median = statistics.median(districtVariable[dist])
-            maxval = max(districtVariable[dist])
-            minval = min(districtVariable[dist])
-        else:
-            mean = -9999.0
-            median = -9999.0
-            maxval = -9999.0
-            minval = -9999.0
-        #        meadian_high = statistics.median_high(districtVariable[dist])
-        #        meadian_low = statistics.median_low(districtVariable[dist])
-        #        std_dev = statistics.stdev(districtVariable[dist])
-        #        variance = statistics.variance(districtVariable[dist])
-        districtVariableStats[dist] = dict([
-            ('mean', mean),
-            ('median', median),
-            ('max', maxval),
-            ('min', minval),
-            ('count', len(districtVariable[dist]))
-        ])
-    return districtVariableStats
 
 def find_maxmin_latlon(lat,lon,minlat,minlon,maxlat,maxlon):
     if lat > maxlat:
@@ -151,148 +36,97 @@ def find_maxmin_latlon(lat,lon,minlat,minlon,maxlat,maxlon):
         minlon = lon
     return minlat,minlon,maxlat,maxlon
 
-def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls, dhis_dist_version):
+def process_files(geometry, dataElement, statType, var_name, opendapUrls):
 
     # dictionaries for computing stats by district
     districtVariable = {}
     #districtVariableStats = {}
-    #districtPolygons = {}
+    districtPolygons = {}
 
     districts = geometry["boundaries"]
     dateStr = ""
-
     # all urls are for the same date
     for opendapUrl in opendapUrls:
-        # look for district tile mapping files
-
-        # extract data type and tile string from url
-        #http://ladsweb.modaps.eosdis.nasa.gov/opendap/allData/6/MOD13A2/2019/001/MOD13A2.A2019001.h16v07.006.2019024152500.hdf?Latitude[0:5:1199][0:5:1199],Longitude[0:5:1199][0:5:1199],_1_km_16_days_NDVI[0:5:1199][0:5:1199]
-        base = os.path.basename(opendapUrl)
-        data_type = base.split('.')[0]
-        tile_str = base.split('.')[2]
-        mod_ver = base.split('.')[3]
-
-        district_i_j_list = {}
-        tile_file = data_type+"_"+mod_ver+"_"+tile_str+"_"+dhis_dist_version+".pkl"
-        tile_map_exists = False
-        #check for existence of file
-        try:
-            s3.Bucket(bucket).download_file("mod_tile/"+tile_file, "/tmp/"+tile_file)
-        except botocore.exceptions.ClientError as e:
-            if e.response['Error']['Code'] == "404":
-                # The object does not exist.
-                tile_map_exists = False
-                print("tile map file " + tile_file + " doesn't exist, creating...")
-            else:
-                # Something else has gone wrong.
-                raise
-        else:
-            # The object does exist, read it into numpy dictionary and set flag
-            print("loading tile map file " + tile_file)
-            tile_map_exists = True
-            f = open("/tmp/"+tile_file, "rb")
-            district_i_j_list = pickle.load(f)
-            f.close()
-
         nc = NetCDFFile(opendapUrl)
-        # auto scale doesn't seem to work on temp data, so set to false and manually scale
-        nc.set_auto_scale(False)
-        variable = nc.variables[var_name][:]
-        print("variable.data:  " + var_name + " ", variable.data)
-        mask = ma.getmask(variable)
-        scale_factor = getattr(nc.variables[var_name], 'scale_factor')
-        print("scale_factor", scale_factor)
-        add_offset = getattr(nc.variables[var_name], 'add_offset')
-        print("add_offset", add_offset)
-        #modis_var = ma.getdata(variable)
-        modis_var = ma.getdata(variable) * scale_factor+add_offset
-        print("scaled variable:  " + var_name + " ", modis_var)
-        valid_range = getattr(nc.variables[var_name], 'valid_range')
-        print("valid_range", valid_range)
-        valid_min=float(valid_range[0])*scale_factor+add_offset
-        valid_max=float(valid_range[1])*scale_factor+add_offset
-        if valid_max < valid_min: # unsigned short int interpreted as negative
-            print("valid_max < valid_min, converting from unsigned short...")
-            valid_max = float(int(valid_range[1]& 0xffff))*scale_factor+add_offset
-
-        print("valid_min ", valid_min)
-        print("valid_max ", valid_max)
-
         lat = nc.variables['Latitude'][:]
         lon = nc.variables['Longitude'][:]
-        # need to get masked values, and scale using attribute scale_factor
-        print("mask:  " + var_name + " ", mask)
-
         print("lat ", lat[0][0], "lon", lon[0][0])
         print("lat.shape[0]", lat.shape[0])
         print("lat.shape[1]", lat.shape[1])
 
-        # strip out yyyyddd from opendap url
-        tempStr = os.path.basename(opendapUrl).split('.')[1]
-        year = int(tempStr[1:5])
-        days = int(tempStr[5:8])
-        print("year "+str(year)+ " days "+str(days))
-        startTime = datetime.datetime(year, 1, 1) + datetime.timedelta(days - 1)
-        dateStr = startTime.strftime("%Y%m%d")
-
-    #    im = PIL.Image.new(mode="RGB", size=(lon.shape[0], lat.shape[0]), color=(255, 255, 255))
-
         for district in districts:
-            if tile_map_exists:
-                accumVariableByDictionary(modis_var, districtVariable, district_i_j_list, valid_min, valid_max)
+            shape = district['geometry']
+            coords = district['geometry']['coordinates']
+     #       name = district['properties']['name']
+            name = district['name']
+            dist_id = district['id']
+
+            def handle_subregion(subregion):
+    #            poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=name)
+                poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=dist_id)
+                return poly
+
+            distPoly = []
+
+            minlat = 90.0
+            maxlat = -90.0
+            minlon = 180.0
+            maxlon = -180.0
+            if shape["type"] == "Polygon":
+                for subregion in coords:
+                    distPoly.append(handle_subregion(subregion))
+                    for coord in subregion:
+                        minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon, maxlat, maxlon)
+            elif shape["type"] == "MultiPolygon":
+                for subregion in coords:
+                    #            print("subregion")
+                    for sub1 in subregion:
+                        #                print("sub-subregion")
+                        distPoly.append(handle_subregion(sub1))
+                        for coord in sub1:
+                            minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon,
+                                                                            maxlat, maxlon)
             else:
-                shape = district['geometry']
-                coords = district['geometry']['coordinates']
-         #       name = district['properties']['name']
-                name = district['name']
-                dist_id = district['id']
-
-                def handle_subregion(subregion):
-        #            poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=name)
-                    poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=dist_id)
-                    return poly
-
-                distPoly = []
-
-                minlat = 90.0
-                maxlat = -90.0
-                minlon = 180.0
-                maxlon = -180.0
-                if shape["type"] == "Polygon":
-                    for subregion in coords:
-                        distPoly.append(handle_subregion(subregion))
-                        for coord in subregion:
-                            minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon, maxlat, maxlon)
-                elif shape["type"] == "MultiPolygon":
-                    for subregion in coords:
-                        #            print("subregion")
-                        for sub1 in subregion:
-                            #                print("sub-subregion")
-                            distPoly.append(handle_subregion(sub1))
-                            for coord in sub1:
-                                minlat, minlon, maxlat, maxlon = find_maxmin_latlon(coord[1], coord[0], minlat, minlon,
-                                                                                maxlat, maxlon)
-                else:
-                    print
-                    "Skipping", dist_id, \
-                    "because of unknown type", shape["type"]
-                # compute statisics
-        #        accumVariableByDistrict(distPoly, variable, lat, lon, districtVariable,minlat,minlon,maxlat,maxlon,im)
-                accumVariableByDistrict(distPoly, modis_var, mask, lat, lon,
-                                        districtVariable,minlat,minlon,maxlat,maxlon,
-                                        valid_min, valid_max,district_i_j_list)
-                #districtPolygons[dist_id] = distPoly
-
+                print
+                "Skipping", dist_id, \
+                "because of unknown type", shape["type"]
+        for poly in polylist:
+            if poly.get_label() not in districtVariable.keys():
+                districtVariable[poly.get_label()] = []
+            #        for ptLat,ptLon,val in lat,lon,Variable:
+            #        print("poly ", poly.get_label())
+        # print("lon.shape[0] ", lon.shape[0])
+        # print("lon.shape[1] ", lon.shape[1])
+        for i in range(lon.shape[0]):
+            for j in range(lon.shape[1]):
+                # mask is not reliable, used for NDVI, but not for LST, for now we will not use it
+                # if not mask[i][j]:
+                # if mask[i][j]:
+                #     continue
+                if lon[i][j] < minlon or lon[i][j] > maxlon:
+                    continue
+                #            print("i ",i)
+                if lat[i][j] < minlat or lat[i][j] > maxlat:
+                    continue
+                #                print("j ",j)
+                #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
+                if variable[i][j] < valid_min or variable[i][j] > valid_max:
+                    continue
+                for poly in polylist:
+                    path = mpltPath.Path(poly.xy)
+                    inside = path.contains_point((lon[i][j], lat[i][j]))
+                    if inside:
+                        # add Variable value to district
+                        # need to change this to check against a fill value
+                        # if variable[i][j] >= valid_min and variable[i][j] <= valid_max:
+                        districtVariable[poly.get_label()].append(float(variable[i][j]))
+                        # values of zero or below are missing, cloud contamination in 8day composite, do not use
+                        # else:
+                        #     districtVariable[poly.get_label()].append(0.0)
+                        break  # only allow membership in one polygon, doesn't allow for overlapping regions
 
         #    print("finished file " + key)
         nc.close()
-
-        if not tile_map_exists:
-            print("saving tile map file " +tile_file)
-            f = open("/tmp/"+tile_file, "wb")
-            pickle.dump(district_i_j_list, f)
-            f.close()
-            s3.Bucket(bucket).upload_file("/tmp/" + tile_file, "mod_tile/" + tile_file)
         # output image
     #    im.save('/tmp/sl_img.jpg', quality=95)
     #    s3.Bucket(s3_bucket).upload_file("/tmp/sl_img.jpg", "test/" + "sl_img.jpg")
@@ -603,10 +437,6 @@ def lambda_handler(event, context):
         if "var_name" in input_json:
             varName = input_json['var_name']
         print('var_name' + varName)
-        dhis_dist_version = 'default'
-        if "dhis_dist_version" in input_json:
-            dhis_dist_version = input_json['dhis_dist_version']
-        print('dhis_dist_version' + dhis_dist_version)
 
         data_element_id = input_json['data_element_id']
 
@@ -686,8 +516,7 @@ def lambda_handler(event, context):
                 # fileCnt = fileCnt + 1
                 # nc.close()
 
-            jsonRecords = process_files(bucket, geometryJson, data_element_id, statType, var_name,
-                                        opendap_urls[date], dhis_dist_version)
+            jsonRecords = process_files(geometryJson, data_element_id, statType, var_name, opendap_urls[date])
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
             fileCnt = fileCnt + len(opendap_urls[date])
