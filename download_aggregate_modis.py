@@ -23,7 +23,7 @@ import matplotlib.path as mpltPath
 
 data_bucket = "mosquito-data"
 
-auth = ('mosquito2019', 'Malafr#1')
+#auth = ('mosquito2019', 'Malafr#1')
 
 s3 = boto3.resource(
     's3')
@@ -193,8 +193,10 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
             f = open("/tmp/"+tile_file, "rb")
             district_i_j_list = pickle.load(f)
             f.close()
+        # add error check and retry to this
 
         nc = NetCDFFile(opendapUrl)
+
         # auto scale doesn't seem to work on temp data, so set to false and manually scale
         nc.set_auto_scale(False)
         variable = nc.variables[var_name][:]
@@ -606,7 +608,7 @@ def lambda_handler(event, context):
         dhis_dist_version = 'default'
         if "dhis_dist_version" in input_json:
             dhis_dist_version = input_json['dhis_dist_version']
-        print('dhis_dist_version' + dhis_dist_version)
+        print('dhis_dist_version ' + dhis_dist_version)
 
         data_element_id = input_json['data_element_id']
 
@@ -622,7 +624,12 @@ def lambda_handler(event, context):
         y_start_stride_stop = ""
         if "y_start_stride_stop" in input_json:
             y_start_stride_stop = input_json["y_start_stride_stop"]
-
+        add_string = ""
+        if "[" in x_start_stride_stop and "]" in x_start_stride_stop:
+            add_string = "_" + x_start_stride_stop[1:len(x_start_stride_stop)-1].replace(':','_',2)
+        if "[" in y_start_stride_stop and "]" in y_start_stride_stop:
+            add_string = add_string + "_" + y_start_stride_stop[1:len(y_start_stride_stop)-1].replace(':','_',2)
+        print("add_string "+add_string)
         opendap_dir = opendap_path + str(modis_version) + '/' + product + '/'
 
         # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
@@ -687,7 +694,7 @@ def lambda_handler(event, context):
                 # nc.close()
 
             jsonRecords = process_files(bucket, geometryJson, data_element_id, statType, var_name,
-                                        opendap_urls[date], dhis_dist_version)
+                                        opendap_urls[date], dhis_dist_version+add_string)
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
             fileCnt = fileCnt + len(opendap_urls[date])
