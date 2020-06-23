@@ -301,21 +301,21 @@ def lambda_handler(event, context):
         print('stat_type' + statType)
 
         update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "working", "loading geometry file...",
-                            creation_time=creation_time_in)
+                            creation_time=creation_time_in, dataset=dataset)
 #        geometryJson = load_json(bucket, "requests/geometry/" + request_id +"_geometry.json")
         geometryJson = load_json_from_s3(s3.Bucket(bucket), "requests/geometry/" + request_id +"_geometry.json")
         if "message" in geometryJson and geometryJson["message"] == "error":
             update_status_on_s3(s3.Bucket(bucket),request_id, "aggregate", "failed",
                                "aggregate_imerge could not load geometry file " +
                                "requests/geometry/" + request_id +"_geometry.json",
-                                creation_time=creation_time_in)
+                                creation_time=creation_time_in, dataset=dataset)
             sys.exit(1)
 
         count = 1
         num_files = len(files)
         for file in files:
             update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "working", "aggregating file "
-                               + str(count) +" of " + str(num_files), creation_time=creation_time_in)
+                               + str(count) +" of " + str(num_files), creation_time=creation_time_in, dataset=dataset)
             jsonRecords = process_file(geometryJson, data_element_id, statType, variable, s3bucket, file)
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
@@ -327,4 +327,4 @@ def lambda_handler(event, context):
         s3.Bucket(bucket).upload_file("/tmp/" + request_id+"_result.json", "results/" +request_id+".json")
 
         update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "success", "Successfully processed "
-                           + str(num_files) + " files", creation_time=creation_time_in)
+                           + str(num_files) + " files", creation_time=creation_time_in, dataset=dataset)

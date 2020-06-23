@@ -582,7 +582,7 @@ def lambda_handler(event, context):
             update_status_on_s3(s3.Bucket(bucket),request_id, "aggregate", "failed",
                                "aggregate_imerge could not load geometry file " +
                                "requests/geometry/" + request_id +"_geometry.json",
-                                creation_time=creation_time_in)
+                                creation_time=creation_time_in, dataset=dataset)
             sys.exit(1)
 
         # defaults
@@ -649,7 +649,7 @@ def lambda_handler(event, context):
         #  for the satellite/product.version/ hierarchy, this gives us a list of available dates for the data
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "Searching for avaialable dates",
-                            creation_time=creation_time_in)
+                            creation_time=creation_time_in, dataset=dataset)
 
         all_dates = get_date_dirs(listing_url, '/' + sat_dir + '/' + product + '.' + modis_version_string + '/')
         use_dates = []
@@ -663,11 +663,11 @@ def lambda_handler(event, context):
         # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "retrieving filenames",
-                            creation_time=creation_time_in)
+                            creation_time=creation_time_in, dataset=dataset)
         filenames = get_filenames(listing_url, use_dates, tiles)
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "Constructing OpenDAP URLs",
-                            creation_time=creation_time_in)
+                            creation_time=creation_time_in, dataset=dataset)
         opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name,
                                         x_start_stride_stop, y_start_stride_stop, filenames)
         print("opendap_urls: ", opendap_urls)
@@ -680,7 +680,7 @@ def lambda_handler(event, context):
         for date in opendap_urls.keys():
             update_status_on_s3(s3.Bucket(data_bucket), request_id,
                                 "aggregate", "working", "Aggregating file " + str(fileCnt) + " of " + str(numFiles),
-                                creation_time=creation_time_in)
+                                creation_time=creation_time_in, dataset=dataset)
  #           for opendap_url in opendap_urls[date]:
                 # nc = NetCDFFile(opendap_url)
                 # variable = nc.variables[var_name][:]
@@ -705,7 +705,7 @@ def lambda_handler(event, context):
         s3.Bucket(bucket).upload_file("/tmp/" + request_id+"_result.json", "results/" +request_id+".json")
 
     update_status_on_s3(s3.Bucket(data_bucket),request_id, "aggregate", "success",
-                       "All requested files successfully aggregated", creation_time=creation_time_in)
+                       "All requested files successfully aggregated", creation_time=creation_time_in, dataset=dataset)
 
 
 # if __name__ == '__main__':

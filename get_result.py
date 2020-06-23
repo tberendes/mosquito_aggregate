@@ -55,6 +55,8 @@ def lambda_handler(event, context):
 
     if "creation_time" in status:
         result_json['creation_time'] = status['creation_time']
+    if "dataset" in status:
+        result_json['dataset'] = status['dataset']
 
     #     found = False
     #     for result_file in my_bucket.objects.filter(Prefix="results/"):
