@@ -9,15 +9,22 @@ import rasterio
 import numpy as np
 from affine import Affine
 from pyproj import Proj, transform
+import gdal
+from osgeo import gdal, gdal_array
 
 from matplotlib.patches import Polygon
 import matplotlib.path as mpltPath
+import numpy
 
 def accumVariableByDistrict(polylist, variable, lat, lon, districtVariable,
                             minlat, minlon, maxlat, maxlon, valid_min, valid_max):
 
-    for i in range(lon.shape[0]):
-        for j in range(lon.shape[1]):
+    for poly in polylist:
+        if poly.get_label() not in districtVariable.keys():
+            districtVariable[poly.get_label()] = []
+
+    for i in range(lat.shape[0]):
+        for j in range(lat.shape[1]):
             # mask is not reliable, used for NDVI, but not for LST, for now we will not use it
             #if not mask[i][j]:
             # if mask[i][j]:
@@ -100,33 +107,58 @@ def process_file(filename, districts, dataElement, statType, var_name):
 
     dateStr = ""
 
+    # Open tif file
+    ds = gdal.Open(filename)
+    raster = ds.GetRasterBand(1)
 
     valid_min=1
     valid_max=350
-
+    # valid_min=raster.GetMinimum()
+    # valid_max=raster.GetMaximum()
     print("valid_min ", valid_min)
     print("valid_max ", valid_max)
 
-    # Read raster
-    with rasterio.open(filename) as r:
-        T0 = r.transform  # upper-left pixel corner affine transform
-        p1 = Proj(r.crs)
-        variable = r.read()  # pixel values
+    # GDAL affine transform parameters, According to gdal documentation xoff/yoff are image left corner, a/e are pixel wight/height and b/d is rotation and is zero if image is north up.
+    xoff, a, b, yoff, d, e = ds.GetGeoTransform()
 
-    # All rows and columns
-    cols, rows = np.meshgrid(np.arange(variable.shape[2]), np.arange(variable.shape[1]))
+    def pixel2coord(x, y):
+        """Returns global coordinates from pixel x, y coords"""
+        xp = a * x + b * y + xoff
+        yp = d * x + e * y + yoff
+        return (xp, yp)
 
-    # Get affine transform for pixel centres
-    T1 = T0 * Affine.translation(0.5, 0.5)
-    # Function to convert pixel row/column index (from 0) to easting/northing at centre
-    rc2en = lambda r, c: (c, r) * T1
+    # get columns and rows of your image from gdalinfo
+    cols = ds.RasterXSize
+    rows = ds.RasterYSize
 
-    # All eastings and northings (there is probably a faster way to do this)
-    eastings, northings = np.vectorize(rc2en, otypes=[np.float, np.float])(rows, cols)
+    lon = numpy.zeros(shape=(rows,cols))
+    lat = numpy.zeros(shape=(rows,cols))
 
-    # Project all longitudes, latitudes
-    p2 = Proj(proj='latlong', datum='WGS84')
-    lon, lat = transform(p1, p2, eastings, northings)
+    variable = ds.ReadAsArray(0, 0, cols, rows).astype(numpy.float)
+    for row in range(0, rows):
+        for col in range(0, cols):
+            lon[row][col], lat[row][col] = pixel2coord(col, row)
+
+    # # Read raster
+    # with rasterio.open(filename) as r:
+    #     T0 = r.transform  # upper-left pixel corner affine transform
+    #     p1 = Proj(r.crs)
+    #     variable = r.read()  # pixel values
+    #
+    # # All rows and columns
+    # cols, rows = np.meshgrid(np.arange(variable.shape[2]), np.arange(variable.shape[1]))
+    #
+    # # Get affine transform for pixel centres
+    # T1 = T0 * Affine.translation(0.5, 0.5)
+    # # Function to convert pixel row/column index (from 0) to easting/northing at centre
+    # rc2en = lambda r, c: (c, r) * T1
+    #
+    # # All eastings and northings (there is probably a faster way to do this)
+    # eastings, northings = np.vectorize(rc2en, otypes=[np.float, np.float])(rows, cols)
+    #
+    # # Project all longitudes, latitudes
+    # p2 = Proj(proj='latlong', datum='WGS84')
+    # lon, lat = transform(p1, p2, eastings, northings)
 
 
 #   lat = nc.variables['Latitude'][:]
@@ -156,6 +188,7 @@ def process_file(filename, districts, dataElement, statType, var_name):
         name = district['name']
         dist_id = district['id']
 
+        print("district: " + name)
         def handle_subregion(subregion):
 #            poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=name)
             poly = Polygon(subregion, edgecolor='k', linewidth=1., zorder=2, label=dist_id)
