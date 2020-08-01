@@ -171,15 +171,17 @@ def process_file(filename, districts, dataElement, statType, var_name):
     # filename format:  ECOSTRESS_L2_LSTE_09009_009_20200206T214458_0601_01_LST_GEO.tif
     # parse out date/time from filename
     # strip out yyyyddd from opendap url
+    tempstr = os.path.basename(filename).split("_")[5]
+    year = tempstr[0:4]
+    print("year ", year)
+    month = tempstr[4:6]
+    print("month ", month)
+    day = tempstr[6:8]
+    print("day ", day)
+    dateStr = year + month +day
+    print("date ", dateStr)
 
-    # tempStr = os.path.basename(opendapUrl).split('.')[1]
-    # year = int(tempStr[1:5])
-    # days = int(tempStr[5:8])
-    # print("year "+str(year)+ " days "+str(days))
-    # startTime = datetime.datetime(year, 1, 1) + datetime.timedelta(days - 1)
-    # dateStr = startTime.strftime("%Y%m%d")
-
-#    im = PIL.Image.new(mode="RGB", size=(lon.shape[0], lat.shape[0]), color=(255, 255, 255))
+    #    im = PIL.Image.new(mode="RGB", size=(lon.shape[0], lat.shape[0]), color=(255, 255, 255))
 
     for district in districts:
         shape = district['geometry']

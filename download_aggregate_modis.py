@@ -22,6 +22,8 @@ from matplotlib.patches import Polygon
 import matplotlib.path as mpltPath
 
 data_bucket = "mosquito-data"
+max_retries = 10
+sleep_secs = 5
 
 #auth = ('mosquito2019', 'Malafr#1')
 
@@ -193,24 +195,53 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
             f = open("/tmp/"+tile_file, "rb")
             district_i_j_list = pickle.load(f)
             f.close()
-        # add error check and retry to this
 
-        nc = NetCDFFile(opendapUrl)
+        # add error check and retry to this
+        retry = 0
+        while True:
+            try:
+                nc = NetCDFFile(opendapUrl)
+                success = True
+                print("Successfully opened url ", opendapUrl)
+            except Exception as e:
+                print("Exception ",e)
+                print("Network error opening url ", opendapUrl)
+                retry = retry + 1
+                if retry < max_retries:
+                    sleep(sleep_secs)
+                    continue
+                else:
+                    print("retries: ",retry)
+                    raise Exception("Network error opening url, maximum retries exceeded")
+            break
+
+
+        # tries = 3
+        # for i in range(max_retries):
+        #     try:
+        #         nc = NetCDFFile(opendapUrl)
+        #         print("Successfully opened url ", opendapUrl)
+        #     except Exception as e:
+        #         if i < tries - 1:  # i is zero indexed
+        #             continue
+        #         else:
+        #             raise
+        #     break
 
         # auto scale doesn't seem to work on temp data, so set to false and manually scale
         nc.set_auto_scale(False)
         variable = nc.variables[var_name][:]
-        print("variable.data:  " + var_name + " ", variable.data)
+        #print("variable.data:  " + var_name + " ", variable.data)
         mask = ma.getmask(variable)
         scale_factor = getattr(nc.variables[var_name], 'scale_factor')
-        print("scale_factor", scale_factor)
+        #print("scale_factor", scale_factor)
         add_offset = getattr(nc.variables[var_name], 'add_offset')
-        print("add_offset", add_offset)
+        #print("add_offset", add_offset)
         #modis_var = ma.getdata(variable)
         modis_var = ma.getdata(variable) * scale_factor+add_offset
-        print("scaled variable:  " + var_name + " ", modis_var)
+        #print("scaled variable:  " + var_name + " ", modis_var)
         valid_range = getattr(nc.variables[var_name], 'valid_range')
-        print("valid_range", valid_range)
+        print("variable ", var_name, "valid_range", valid_range)
         valid_min=float(valid_range[0])*scale_factor+add_offset
         valid_max=float(valid_range[1])*scale_factor+add_offset
         if valid_max < valid_min: # unsigned short int interpreted as negative
@@ -223,7 +254,7 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
         lat = nc.variables['Latitude'][:]
         lon = nc.variables['Longitude'][:]
         # need to get masked values, and scale using attribute scale_factor
-        print("mask:  " + var_name + " ", mask)
+        #print("mask:  " + var_name + " ", mask)
 
         print("lat ", lat[0][0], "lon", lon[0][0])
         print("lat.shape[0]", lat.shape[0])
@@ -306,13 +337,13 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
        # name = district['properties']['name']
         dist_id = district['id']
         name = district['name']
-        print("district name ", name)
-        print("district id", dist_id)
-        print("mean Variable ", districtVariableStats[dist_id]['mean'])
-        print("median Variable ", districtVariableStats[dist_id]['median'])
-        print("max Variable ", districtVariableStats[dist_id]['max'])
-        print("min Variable ", districtVariableStats[dist_id]['min'])
-        print("count ", districtVariableStats[dist_id]['count'])
+        #print("district name ", name)
+        #print("district id", dist_id)
+        #print("mean Variable ", districtVariableStats[dist_id]['mean'])
+        #print("median Variable ", districtVariableStats[dist_id]['median'])
+        #print("max Variable ", districtVariableStats[dist_id]['max'])
+        #print("min Variable ", districtVariableStats[dist_id]['min'])
+        #print("count ", districtVariableStats[dist_id]['count'])
     outputJson = []
     for key in districtVariableStats.keys():
         value = districtVariableStats[key][statType]
@@ -692,9 +723,13 @@ def lambda_handler(event, context):
                 # print("lat ", lat[0][0], "lon", lon[0][0])
                 # fileCnt = fileCnt + 1
                 # nc.close()
-
-            jsonRecords = process_files(bucket, geometryJson, data_element_id, statType, var_name,
+            try:
+                jsonRecords = process_files(bucket, geometryJson, data_element_id, statType, var_name,
                                         opendap_urls[date], dhis_dist_version+add_string)
+                print("Successfully processed  files for date ", date)
+            except:
+                print("Error reading files for date ", date, " skipping...")
+                continue
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
             fileCnt = fileCnt + len(opendap_urls[date])

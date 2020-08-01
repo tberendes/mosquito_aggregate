@@ -4,6 +4,10 @@
     <list default="true" id="c25fb7d0-2edc-4dbf-811e-812bcf1be1a3" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/aggregate_ecostress.py" beforeDir="false" afterPath="$PROJECT_DIR$/aggregate_ecostress.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/download_aggregate_modis.py" beforeDir="false" afterPath="$PROJECT_DIR$/download_aggregate_modis.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sample_payload_ECOSTRESS.json" beforeDir="false" afterPath="$PROJECT_DIR$/sample_payload_ECOSTRESS.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sample_payload_MOD11B2.json" beforeDir="false" afterPath="$PROJECT_DIR$/sample_payload_MOD11B2.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_get_result.json" beforeDir="false" afterPath="$PROJECT_DIR$/test_get_result.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,7 +38,7 @@
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/sample_payload_MOD11B2.json" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
     <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/download_aggregate_modis.py" />
   </component>
@@ -56,7 +60,7 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.aggregate_ecostress">
+  <component name="RunManager" selected="AWS Lambda.[Remote] get_result">
     <configuration name="aggregate_ecostress" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="mosquito" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -70,27 +74,6 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/aggregate_ecostress.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="aggregate_imerg" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="mosquito" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/aggregate_imerg.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -136,11 +119,19 @@
       <option name="inputIsFile" value="true" />
       <method v="2" />
     </configuration>
+    <configuration name="[Remote] get_status" type="aws.lambda" factoryName="Remote" temporary="true" nameIsGenerated="true">
+      <option name="credentialProviderId" value="profile:MoSqUITO-SvcDev" />
+      <option name="regionId" value="us-east-1" />
+      <option name="functionName" value="get_status" />
+      <option name="input" />
+      <option name="inputIsFile" value="false" />
+      <method v="2" />
+    </configuration>
     <configuration name="[Remote] start_cloud_workflow" type="aws.lambda" factoryName="Remote" nameIsGenerated="true">
       <option name="credentialProviderId" value="profile:MoSqUITO-SvcDev" />
       <option name="regionId" value="us-east-1" />
       <option name="functionName" value="start_cloud_workflow" />
-      <option name="input" value="$PROJECT_DIR$/sample_payload_MOD13A2.json" />
+      <option name="input" value="$PROJECT_DIR$/sample_payload_MOD11B2.json" />
       <option name="inputIsFile" value="true" />
       <method v="2" />
     </configuration>
@@ -148,20 +139,21 @@
       <item itemvalue="AWS Lambda.[Remote] start_cloud_workflow" />
       <item itemvalue="AWS Lambda.[Remote] download_aggregate_modis" />
       <item itemvalue="AWS Lambda.[Remote] get_result" />
-      <item itemvalue="Python.aggregate_imerg" />
-      <item itemvalue="Python.download_aggregate_modis" />
       <item itemvalue="Python.aggregate_ecostress" />
+      <item itemvalue="Python.download_aggregate_modis" />
+      <item itemvalue="AWS Lambda.[Remote] get_status" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.aggregate_ecostress" />
         <item itemvalue="AWS Lambda.[Remote] get_result" />
+        <item itemvalue="AWS Lambda.[Remote] get_status" />
         <item itemvalue="AWS Lambda.[Remote] download_aggregate_modis" />
+        <item itemvalue="Python.aggregate_ecostress" />
         <item itemvalue="Python.download_aggregate_modis" />
-        <item itemvalue="Python.aggregate_imerg" />
       </list>
     </recent_temporary>
   </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="SvnConfiguration">
     <configuration />
   </component>
@@ -313,7 +305,14 @@
       <option name="project" value="LOCAL" />
       <updated>1594654118659</updated>
     </task>
-    <option name="localTasksCounter" value="21" />
+    <task id="LOCAL-00021" summary="update">
+      <created>1594926185150</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1594926185150</updated>
+    </task>
+    <option name="localTasksCounter" value="22" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -349,58 +348,50 @@
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="590" y="194" width="732" height="637" key="#Inspections/67.27.1853.948@67.27.1853.948" timestamp="1594829988593" />
-    <state x="855" y="385" width="251" height="266" key="#Notifications" timestamp="1586545380031">
-      <screen x="67" y="27" width="1853" height="948" />
-    </state>
-    <state x="855" y="385" width="251" height="266" key="#Notifications/67.27.1853.948@67.27.1853.948" timestamp="1586545380031" />
     <state x="716" y="114" width="666" height="719" key="#[Remote]_download_aggregate_modis" timestamp="1588602988238">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="716" y="114" width="666" height="719" key="#[Remote]_download_aggregate_modis/67.27.1853.948@67.27.1853.948" timestamp="1588602988238" />
-    <state x="613" y="215" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1594826077121">
+    <state x="748" y="267" width="1084" height="708" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1596226244275">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state x="613" y="215" key="#com.intellij.execution.impl.EditConfigurationsDialog/67.27.1853.948@67.27.1853.948" timestamp="1594826077121" />
-    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2" timestamp="1594654117052">
+    <state x="748" y="267" width="1084" height="708" key="#com.intellij.execution.impl.EditConfigurationsDialog/67.27.1853.948@67.27.1853.948" timestamp="1596226244275" />
+    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2" timestamp="1594926183238">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2/67.27.1853.948@67.27.1853.948" timestamp="1594654117052" />
+    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2/67.27.1853.948@67.27.1853.948" timestamp="1594926183238" />
     <state x="330" y="158" width="1416" height="645" key="DiffContextDialog" timestamp="1594321434331">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="330" y="158" width="1416" height="645" key="DiffContextDialog/67.27.1853.948@67.27.1853.948" timestamp="1594321434331" />
-    <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl" timestamp="1592945364638">
+    <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl" timestamp="1596226241967">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl/67.27.1853.948@67.27.1853.948" timestamp="1592945364638" />
-    <state width="1537" height="185" key="GridCell.Tab.0.bottom" timestamp="1594827765949">
+    <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl/67.27.1853.948@67.27.1853.948" timestamp="1596226241967" />
+    <state width="792" height="185" key="GridCell.Tab.0.bottom" timestamp="1596248788980">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state width="1537" height="185" key="GridCell.Tab.0.bottom/67.27.1853.948@67.27.1853.948" timestamp="1594827765949" />
-    <state width="834" height="209" key="GridCell.Tab.0.bottom/67.27.1853.988@67.27.1853.988" timestamp="1586566233387" />
-    <state width="1537" height="185" key="GridCell.Tab.0.center" timestamp="1594827765948">
+    <state width="792" height="185" key="GridCell.Tab.0.bottom/67.27.1853.948@67.27.1853.948" timestamp="1596248788980" />
+    <state width="792" height="185" key="GridCell.Tab.0.center" timestamp="1596248788979">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state width="1537" height="185" key="GridCell.Tab.0.center/67.27.1853.948@67.27.1853.948" timestamp="1594827765948" />
-    <state width="834" height="209" key="GridCell.Tab.0.center/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
-    <state width="1537" height="185" key="GridCell.Tab.0.left" timestamp="1594827765947">
+    <state width="792" height="185" key="GridCell.Tab.0.center/67.27.1853.948@67.27.1853.948" timestamp="1596248788979" />
+    <state width="792" height="185" key="GridCell.Tab.0.left" timestamp="1596248788978">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state width="1537" height="185" key="GridCell.Tab.0.left/67.27.1853.948@67.27.1853.948" timestamp="1594827765947" />
-    <state width="834" height="209" key="GridCell.Tab.0.left/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
-    <state width="1537" height="185" key="GridCell.Tab.0.right" timestamp="1594827765949">
+    <state width="792" height="185" key="GridCell.Tab.0.left/67.27.1853.948@67.27.1853.948" timestamp="1596248788978" />
+    <state width="792" height="185" key="GridCell.Tab.0.right" timestamp="1596248788980">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state width="1537" height="185" key="GridCell.Tab.0.right/67.27.1853.948@67.27.1853.948" timestamp="1594827765949" />
-    <state width="834" height="209" key="GridCell.Tab.0.right/67.27.1853.988@67.27.1853.988" timestamp="1586566233386" />
+    <state width="792" height="185" key="GridCell.Tab.0.right/67.27.1853.948@67.27.1853.948" timestamp="1596248788980" />
     <state x="494" y="144" width="1199" height="730" key="SettingsEditor" timestamp="1594926137838">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="494" y="144" width="1199" height="730" key="SettingsEditor/67.27.1853.948@67.27.1853.948" timestamp="1594926137838" />
-    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1594654124645">
+    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1594926186998">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.948@67.27.1853.948" timestamp="1594654124645" />
+    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.948@67.27.1853.948" timestamp="1594926186998" />
     <state x="286" y="130" width="1360" height="667" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1592945364979">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
