@@ -210,6 +210,7 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
                 print("Exception ",e)
                 print("Network error opening url ", opendapUrl)
                 retry = retry + 1
+                print("retry ", retry, " of ", max_retries, "...")
                 if retry < max_retries:
                     sleep(sleep_secs)
                     continue
@@ -259,15 +260,15 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
         # need to get masked values, and scale using attribute scale_factor
         #print("mask:  " + var_name + " ", mask)
 
-        print("lat ", lat[0][0], "lon", lon[0][0])
-        print("lat.shape[0]", lat.shape[0])
-        print("lat.shape[1]", lat.shape[1])
+        #print("lat ", lat[0][0], "lon", lon[0][0])
+        #print("lat.shape[0]", lat.shape[0])
+        #print("lat.shape[1]", lat.shape[1])
 
         # strip out yyyyddd from opendap url
         tempStr = os.path.basename(opendapUrl).split('.')[1]
         year = int(tempStr[1:5])
         days = int(tempStr[5:8])
-        print("year "+str(year)+ " days "+str(days))
+        #print("year "+str(year)+ " days "+str(days))
         startTime = datetime.datetime(year, 1, 1) + datetime.timedelta(days - 1)
         dateStr = startTime.strftime("%Y%m%d")
 
@@ -397,7 +398,7 @@ def get_href(url, substr):
     # all URLs of `url`
     contents = []
     # domain name of the URL without the protocol
-    print("url ", url)
+    #print("url ", url)
     soup = BeautifulSoup(requests.get(url).content, "html.parser")
 
     for a_tag in soup.findAll("a"):
@@ -427,11 +428,11 @@ def get_dates(url, start_year,end_year):
 
     for year in range(start_year, end_year + 1):
         # domain name of the URL without the protocol
-        print("url ", url)
+        #print("url ", url)
         content = url+str(year)+"/contents.html"
-        print("content ",content)
+        #print("content ",content)
         days = get_href(content, "contents.html")
-        print("days ",days)
+        #print("days ",days)
         for day in days:
             dates.append(day)
     return dates
@@ -448,7 +449,7 @@ def get_filenames(url, start_date, end_date, tiles):
     # domain name of the URL without the protocol
     start_year = int(start_date[0:4])
     end_year = int(end_date[0:4])
-    print("start year ", start_year, " end year ", end_year)
+    #print("start year ", start_year, " end year ", end_year)
 
     dates = get_dates(url, start_year, end_year)
 
@@ -456,12 +457,12 @@ def get_filenames(url, start_date, end_date, tiles):
     year = int(start_date[0:4])
     month = int(start_date[5:7])
     day = int(start_date[8:10])
-    print("start date " + str(year) + "-" + str(month)+ "-" + str(day))
+    #print("start date " + str(year) + "-" + str(month)+ "-" + str(day))
     startDatetime = datetime.datetime(year, month, day) # + datetime.timedelta(days - 1)
     year = int(end_date[0:4])
     month = int(end_date[5:7])
     day = int(end_date[8:10])
-    print("end date " + str(year) + "-" + str(month)+ "-" + str(day))
+    #print("end date " + str(year) + "-" + str(month)+ "-" + str(day))
     endDatetime = datetime.datetime(year, month, day) # + datetime.timedelta(days - 1)
     #dateStr = startTime.strftime("%Y%m%d")
 
@@ -502,9 +503,6 @@ def get_opendap_urls(var_name, x_start_stride_stop, y_start_stride_stop, filenam
         if date not in opendap_urls:
             opendap_urls[date]=[]
         for filename in filenames[date]:
-            year = filename.split('.')[1][1:5]
-            jday = filename.split('.')[1][5:8]
-            print ("year "+year + " jday "+jday)
             od_url= filename \
                    + '?Latitude'+x_start_stride_stop+y_start_stride_stop\
                    + ',Longitude'+x_start_stride_stop+y_start_stride_stop+',' \
