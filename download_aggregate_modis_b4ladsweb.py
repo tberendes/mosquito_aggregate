@@ -393,11 +393,14 @@ def is_valid(url):
     parsed = urlparse(url)
     return bool(parsed.netloc) and bool(parsed.scheme)
 
-def get_href(url, substr):
+def get_date_dirs(url, path_prefix):
+    """
+    Returns all date encoded sub-directories in the url
+    """
     # all URLs of `url`
-    contents = []
+    dates = []
     # domain name of the URL without the protocol
-    print("url ", url)
+    domain_name = urlparse(url).netloc
     soup = BeautifulSoup(requests.get(url).content, "html.parser")
 
     for a_tag in soup.findAll("a"):
@@ -407,36 +410,23 @@ def get_href(url, substr):
             continue
         # join the URL if it's relative (not absolute link)
         href = urljoin(url, href)
-#        print("href ", href)
         parsed_href = urlparse(href)
-#        print("parsed href ", parsed_href)
-        if not is_valid(href) or str(href).find(substr) < 0 or str(href) == url:
+        # remove URL GET parameters, URL fragments, etc.
+        href = parsed_href.scheme + "://" + parsed_href.netloc + parsed_href.path
+        str_path = str(parsed_href.path)
+        path_pos = str_path.find(path_prefix)
+        if not is_valid(href) or path_pos < 0:
             # not a valid URL
             continue
-#        print("added: " + href)
-        contents.append(href)
-    return contents
+        #print("link: "+href)
+        date_path = str_path[path_pos+len(path_prefix):len(str_path)-1].replace('.','-',2)
+        #date_path = str_path[path_pos+len(path_prefix):len(str_path)-1]
+        #print("date: "+date_path)
+        dates.append(date_path)
 
-
-def get_dates(url, start_year,end_year):
-    """
-    Returns all date encoded sub-directories in the url
-    """
-    # all URLs of `url`
-    dates = []
-
-    for year in range(start_year, end_year + 1):
-        # domain name of the URL without the protocol
-        print("url ", url)
-        content = url+str(year)+"/contents.html"
-        print("content ",content)
-        days = get_href(content, "contents.html")
-        print("days ",days)
-        for day in days:
-            dates.append(day)
     return dates
 
-def get_filenames(url, start_date, end_date, tiles):
+def get_filenames(url, dates, tiles):
     """
     Returns a list of filenames for the horiz and vert indices of the sinusoidal projection for the
     specified list of dates known to have data (returned from get_date_dirs)
@@ -446,54 +436,38 @@ def get_filenames(url, start_date, end_date, tiles):
     files = {}
     #files = []
     # domain name of the URL without the protocol
-    start_year = int(start_date[0:4])
-    end_year = int(end_date[0:4])
-    print("start year ", start_year, " end year ", end_year)
-
-    dates = get_dates(url, start_year, end_year)
-
-    # strip out yyyyddd from opendap url i.e. 2015-08-01... YYYY-mm-dd
-    year = int(start_date[0:4])
-    month = int(start_date[5:7])
-    day = int(start_date[8:10])
-    print("start date " + str(year) + "-" + str(month)+ "-" + str(day))
-    startDatetime = datetime.datetime(year, month, day) # + datetime.timedelta(days - 1)
-    year = int(end_date[0:4])
-    month = int(end_date[5:7])
-    day = int(end_date[8:10])
-    print("end date " + str(year) + "-" + str(month)+ "-" + str(day))
-    endDatetime = datetime.datetime(year, month, day) # + datetime.timedelta(days - 1)
-    #dateStr = startTime.strftime("%Y%m%d")
+    soup = BeautifulSoup(requests.get(url).content, "html.parser")
 
     for date in dates:
-        # strip year/jday out of file urls
-        # i.e. https://ladsweb.modaps.eosdis.nasa.gov/opendap/allData/6/MOD11B2/2018/001/contents.html
-        year = int(date.split("/")[-3])
-        jday = int(date.split("/")[-2])
-        thisDatetime = datetime.datetime(year, 1, 1)  + datetime.timedelta(jday - 1)
-        found_tiles = {}
-        if thisDatetime >=startDatetime and thisDatetime <= endDatetime:
-            # find h and v tiles
-            date_str = thisDatetime.strftime("%Y%m%d")
-            if date_str not in files:
-                files[date_str] = []
-            for tile in tiles:
-                #date_str = date.replace('-','.',2)
-                hv_str = 'h{:02d}v{:02d}'.format(tile[0],tile[1])
-                print("hv "+hv_str)
-                dayContents = get_href(date, hv_str)
-                for tile_file in dayContents:
-                    #if str(tile_file).find(hv_str)>=0 and str(tile_file).endswith('hdf.html'):
-                    if str(tile_file).endswith('hdf.html'):
-                        if not tile_file in found_tiles.keys():
-                            print("found file ", tile_file)
-                            found_tiles[tile_file]=True
-                            files[date_str].append(str(tile_file).split('.html')[0])
-                        else:
-                            continue
+        if date not in files:
+            files[date] = []
+        #directory = url+'/' + date.replace('-', '.', 2) + '/'
+        directory = url + date.replace('-', '.', 2) + '/'
+        print("directory: "+directory)
+        soup = BeautifulSoup(requests.get(directory).content, "html.parser")
+        for tile in tiles:
+            date_str = date.replace('-','.',2)
+            hv_str = 'h{:02d}v{:02d}'.format(tile[0],tile[1])
+            print("hv "+hv_str)
+            for a_tag in soup.findAll("a"):
+                href = a_tag.attrs.get("href")
+                #print("href: ",href)
+                if href == "" or href is None:
+                    # href empty tag
+                    continue
+                # join the URL if it's relative (not absolute link)
+                href = urljoin(directory, href)
+                parsed_href = urlparse(href)
+                str_path = str(parsed_href.path)
+
+                hv_pos = str_path.find(hv_str)
+                if hv_pos < 0 or not str_path.endswith('.hdf'):
+                    continue
+                print("file: "+os.path.basename(str_path))
+                files[date].append(os.path.basename(str_path))
     return files
 
-def get_opendap_urls(var_name, x_start_stride_stop, y_start_stride_stop, filenames):
+def get_opendap_urls(opendap_site, opendap_dir, var_name, x_start_stride_stop, y_start_stride_stop, filenames):
     # construct opendap url from info in MODIS filenames
     # extract year, jday from filename
     #opendap_urls=[]
@@ -505,7 +479,7 @@ def get_opendap_urls(var_name, x_start_stride_stop, y_start_stride_stop, filenam
             year = filename.split('.')[1][1:5]
             jday = filename.split('.')[1][5:8]
             print ("year "+year + " jday "+jday)
-            od_url= filename \
+            od_url="http://" + opendap_site + '/' + opendap_dir + year + '/' + jday + '/' + filename \
                    + '?Latitude'+x_start_stride_stop+y_start_stride_stop\
                    + ',Longitude'+x_start_stride_stop+y_start_stride_stop+',' \
                    + var_name + x_start_stride_stop+y_start_stride_stop
@@ -514,6 +488,70 @@ def get_opendap_urls(var_name, x_start_stride_stop, y_start_stride_stop, filenam
 
     # i.e. "http://ladsweb.modaps.eosdis.nasa.gov/opendap/hyrax/allData/6/MYD11B2/2020/097/MYD11B2.A2020097.h16v08.006.2020105174027.hdf?LST_Day_6km,LST_Night_6km,Latitude,Longitude"
     return opendap_urls
+
+# def main():
+#     event = {"dataset": "temperature", "org_unit": "district", "stat_type": "mean", "product": "MOD11B2",
+#                "var_name": "LST_Day_6km", "agg_period": "daily", "start_date": "2019-08-01T00:00:00.000Z",
+#                "end_date": "2019-08-31T00:00:00.000Z"}
+#
+#     # determine all of the tiles necessary to cover the desired region
+#     # use geolocation data to determine bounding box and find all tiled contained within
+#     tiles = [[16,8]]
+#
+#     modis_version = 6
+#     listing_site = 'e4ftl01.cr.usgs.gov'
+#     opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
+#
+#     modis_version_string = '{:03d}'.format(modis_version)
+#     print("modis_version_string "+modis_version_string)
+#     product = event['product']
+#     start_date = event['start_date'].split('T')[0]
+#     end_date = event['end_date'].split('T')[0]
+#     var_name = event['var_name']
+#
+#     #opendap_dir = 'opendap/hyrax/allData/'+str(modis_version)+'/'+product+'/'
+#     opendap_dir = 'opendap/allData/'+str(modis_version)+'/'+product+'/'
+#
+#     # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
+#     if 'MOD' in product: # Terra
+#         sat_dir = "MOLT"
+#     elif 'MYD' in product: # Aqua
+#         sat_dir = "MOLA"
+#     else:
+#         print('Error! unknown product : '+product)
+#         sys.exit(1)
+#
+#     listing_url = 'https://'+listing_site+'/' + sat_dir + '/' + product + '.' + modis_version_string+'/'
+#     print("listing_url: "+ listing_url)
+#
+#     #/MOLT/MOD11B2.006/
+#     #  list directories (dates) under the direct file access site to get filenames and dates
+#     #  for the satellite/product.version/ hierarchy, this gives us a list of available dates for the data
+#     all_dates = get_date_dirs(listing_url, '/'+sat_dir+'/'+product+'.'+modis_version_string+'/')
+#     use_dates = []
+#     # step through the sorted dates to get discrete granule dates within specified time range
+#     for date in sorted(all_dates):
+#         if date >= start_date and date <= end_date:
+#             use_dates.append(date)
+#     print("use dates: ",use_dates)
+#
+#     # set up opendap urls using filenames from direct access site.  With opendap we can request only the variables
+#     # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
+#     filenames=get_filenames(listing_url,use_dates,tiles)
+#     opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name, filenames)
+#
+#     # use netcdf to directly access the opendap URLS and return the variables we want
+#     for opendap_url in opendap_urls:
+#         nc = NetCDFFile(opendap_url)
+#         variable = nc.variables[var_name][:]
+#         scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+#         lat = nc.variables['Latitude'][:]
+#         lon = nc.variables['Longitude'][:]
+#         print("Variable:  "+var_name+" ", ma.getdata(variable) * scale_factor)
+#         # need to get masked values, and scale using attribute scale_factor
+#         print("lat ", lat[0][0], "lon", lon[0][0])
+#
+#         nc.close()
 
 def lambda_handler(event, context):
     #    product = 'GPM_3IMERGDE_06'
@@ -588,9 +626,10 @@ def lambda_handler(event, context):
         #currently hard coded, could add as parameters to support config file
         modis_version = 6
 #        listing_site = 'e4ftl01.cr.usgs.gov'
+        listing_site = 'ladsweb.modaps.eosdis.nasa.gov'
         opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
         #opendap_path = 'opendap/hyrax/allData/'
-        opendap_path = 'opendap/allData'
+        opendap_path = 'opendap/allData/'
 
         if "stat_type" in input_json:
             statType = input_json['stat_type']
@@ -608,8 +647,7 @@ def lambda_handler(event, context):
 
         data_element_id = input_json['data_element_id']
 
-#        modis_version_string = '{:03d}'.format(modis_version)
-        modis_version_string = '{:d}'.format(modis_version)
+        modis_version_string = '{:03d}'.format(modis_version)
         print("modis_version_string " + modis_version_string)
         product = input_json['product']
         start_date = input_json['start_date'].split('T')[0]
@@ -627,32 +665,46 @@ def lambda_handler(event, context):
         if "[" in y_start_stride_stop and "]" in y_start_stride_stop:
             add_string = add_string + "_" + y_start_stride_stop[1:len(y_start_stride_stop)-1].replace(':','_',2)
         print("add_string "+add_string)
+        opendap_dir = opendap_path + str(modis_version) + '/' + product + '/'
 
-#https://ladsweb.modaps.eosdis.nasa.gov/opendap/hyrax/allData/6/MOD11B2/2018/
-#        listing_url = 'https://' + listing_site + '/' + sat_dir + '/' + product + '.' + modis_version_string + '/'
-        listing_url = 'https://' + opendap_site + '/' + opendap_path + '/'+ modis_version_string + '/' + product + '/'
+        # possible LST products Terra MOD11A2 (1km) MOD11B2 (6km) and Aqua MYD11A2 and MYD11B2
+        if 'MOD' in product:  # Terra
+            sat_dir = "MOLT"
+        elif 'MYD' in product:  # Aqua
+            sat_dir = "MOLA"
+        else:
+            print('Error! unknown product : ' + product)
+            sys.exit(1)
+
+        listing_url = 'https://' + listing_site + '/' + sat_dir + '/' + product + '.' + modis_version_string + '/'
         print("listing_url: " + listing_url)
+
+        # /MOLT/MOD11B2.006/
+        #  list directories (dates) under the direct file access site to get filenames and dates
+        #  for the satellite/product.version/ hierarchy, this gives us a list of available dates for the data
+        update_status_on_s3(s3.Bucket(data_bucket), request_id,
+                            "aggregate", "working", "Searching for avaialable dates",
+                            creation_time=creation_time_in, dataset=dataset)
+
+        all_dates = get_date_dirs(listing_url, '/' + sat_dir + '/' + product + '.' + modis_version_string + '/')
+        use_dates = []
+        # step through the sorted dates to get discrete granule dates within specified time range
+        for date in sorted(all_dates):
+            if date >= start_date and date <= end_date:
+                use_dates.append(date)
+        print("use dates: ", use_dates)
 
         # set up opendap urls using filenames from direct access site.  With opendap we can request only the variables
         # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "retrieving filenames",
                             creation_time=creation_time_in, dataset=dataset)
-
-        #start_year = int(start_date[0:4])
-        #end_year = int(end_date[0:4])
-        #all_dates = get_dates(listing_url, start_year, end_year)
-
-        #print("all_dates ", all_dates)
-        #exit(0)
-
-        filenames = get_filenames(listing_url, start_date, end_date, tiles)
-
+        filenames = get_filenames(listing_url, use_dates, tiles)
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "Constructing OpenDAP URLs",
                             creation_time=creation_time_in, dataset=dataset)
-        opendap_urls = get_opendap_urls(var_name,x_start_stride_stop, y_start_stride_stop, filenames)
-
+        opendap_urls = get_opendap_urls(opendap_site, opendap_dir, var_name,
+                                        x_start_stride_stop, y_start_stride_stop, filenames)
         print("opendap_urls: ", opendap_urls)
         # use netcdf to directly access the opendap URLS and return the variables we want
         numFiles=0
@@ -680,12 +732,8 @@ def lambda_handler(event, context):
                                         opendap_urls[date], dhis_dist_version+add_string)
                 print("Successfully processed  files for date ", date)
             except:
-                print("Error reading files for date ", date, " exiting...")
-                #continue
-                update_status_on_s3(s3.Bucket(data_bucket), request_id, "download", "failed",
-                                    "Error reading files for date" + date,
-                                    creation_time=creation_time_in, dataset=dataset)
-                exit(-1)
+                print("Error reading files for date ", date, " skipping...")
+                continue
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
             fileCnt = fileCnt + len(opendap_urls[date])

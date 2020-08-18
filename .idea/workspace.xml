@@ -2,10 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c25fb7d0-2edc-4dbf-811e-812bcf1be1a3" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/test_appeears.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/aggregate_ecostress.py" beforeDir="false" afterPath="$PROJECT_DIR$/aggregate_ecostress.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/download_aggregate_modis.py" beforeDir="false" afterPath="$PROJECT_DIR$/download_aggregate_modis.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sample_payload_ECOSTRESS.json" beforeDir="false" afterPath="$PROJECT_DIR$/sample_payload_ECOSTRESS.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/sample_payload_MOD11B2.json" beforeDir="false" afterPath="$PROJECT_DIR$/sample_payload_MOD11B2.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test_get_result.json" beforeDir="false" afterPath="$PROJECT_DIR$/test_get_result.json" afterDir="false" />
     </list>
@@ -38,7 +37,7 @@
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/sample_payload_MOD11B2.json" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
     <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/download_aggregate_modis.py" />
   </component>
@@ -139,9 +138,9 @@
       <item itemvalue="AWS Lambda.[Remote] start_cloud_workflow" />
       <item itemvalue="AWS Lambda.[Remote] download_aggregate_modis" />
       <item itemvalue="AWS Lambda.[Remote] get_result" />
+      <item itemvalue="AWS Lambda.[Remote] get_status" />
       <item itemvalue="Python.aggregate_ecostress" />
       <item itemvalue="Python.download_aggregate_modis" />
-      <item itemvalue="AWS Lambda.[Remote] get_status" />
     </list>
     <recent_temporary>
       <list>
@@ -312,7 +311,14 @@
       <option name="project" value="LOCAL" />
       <updated>1594926185150</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="update">
+      <created>1596249103804</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1596249103804</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -348,18 +354,14 @@
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="590" y="194" width="732" height="637" key="#Inspections/67.27.1853.948@67.27.1853.948" timestamp="1594829988593" />
-    <state x="716" y="114" width="666" height="719" key="#[Remote]_download_aggregate_modis" timestamp="1588602988238">
-      <screen x="67" y="27" width="1853" height="948" />
-    </state>
-    <state x="716" y="114" width="666" height="719" key="#[Remote]_download_aggregate_modis/67.27.1853.948@67.27.1853.948" timestamp="1588602988238" />
     <state x="748" y="267" width="1084" height="708" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1596226244275">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="748" y="267" width="1084" height="708" key="#com.intellij.execution.impl.EditConfigurationsDialog/67.27.1853.948@67.27.1853.948" timestamp="1596226244275" />
-    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2" timestamp="1594926183238">
+    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2" timestamp="1596249101940">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2/67.27.1853.948@67.27.1853.948" timestamp="1594926183238" />
+    <state x="608" y="37" width="912" height="931" key="CommitChangelistDialog2/67.27.1853.948@67.27.1853.948" timestamp="1596249101940" />
     <state x="330" y="158" width="1416" height="645" key="DiffContextDialog" timestamp="1594321434331">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
@@ -368,30 +370,30 @@
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="674" y="213" width="424" height="484" key="FileChooserDialogImpl/67.27.1853.948@67.27.1853.948" timestamp="1596226241967" />
-    <state width="792" height="185" key="GridCell.Tab.0.bottom" timestamp="1596248788980">
+    <state width="787" height="185" key="GridCell.Tab.0.bottom" timestamp="1597771564547">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state width="792" height="185" key="GridCell.Tab.0.bottom/67.27.1853.948@67.27.1853.948" timestamp="1596248788980" />
-    <state width="792" height="185" key="GridCell.Tab.0.center" timestamp="1596248788979">
+    <state width="787" height="185" key="GridCell.Tab.0.bottom/67.27.1853.948@67.27.1853.948" timestamp="1597771564547" />
+    <state width="787" height="185" key="GridCell.Tab.0.center" timestamp="1597771564546">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state width="792" height="185" key="GridCell.Tab.0.center/67.27.1853.948@67.27.1853.948" timestamp="1596248788979" />
-    <state width="792" height="185" key="GridCell.Tab.0.left" timestamp="1596248788978">
+    <state width="787" height="185" key="GridCell.Tab.0.center/67.27.1853.948@67.27.1853.948" timestamp="1597771564546" />
+    <state width="787" height="185" key="GridCell.Tab.0.left" timestamp="1597771564545">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state width="792" height="185" key="GridCell.Tab.0.left/67.27.1853.948@67.27.1853.948" timestamp="1596248788978" />
-    <state width="792" height="185" key="GridCell.Tab.0.right" timestamp="1596248788980">
+    <state width="787" height="185" key="GridCell.Tab.0.left/67.27.1853.948@67.27.1853.948" timestamp="1597771564545" />
+    <state width="787" height="185" key="GridCell.Tab.0.right" timestamp="1597771564546">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state width="792" height="185" key="GridCell.Tab.0.right/67.27.1853.948@67.27.1853.948" timestamp="1596248788980" />
+    <state width="787" height="185" key="GridCell.Tab.0.right/67.27.1853.948@67.27.1853.948" timestamp="1597771564546" />
     <state x="494" y="144" width="1199" height="730" key="SettingsEditor" timestamp="1594926137838">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
     <state x="494" y="144" width="1199" height="730" key="SettingsEditor/67.27.1853.948@67.27.1853.948" timestamp="1594926137838" />
-    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1594926186998">
+    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1596249106816">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
-    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.948@67.27.1853.948" timestamp="1594926186998" />
+    <state x="557" y="214" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.948@67.27.1853.948" timestamp="1596249106816" />
     <state x="286" y="130" width="1360" height="667" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1592945364979">
       <screen x="67" y="27" width="1853" height="948" />
     </state>
