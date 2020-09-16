@@ -26,8 +26,10 @@ from time import sleep
 data_bucket = "mosquito-data"
 max_retries = 10
 sleep_secs = 5
+missing_value = -9999.0
+return_missing_values = False
 
-#auth = ('mosquito2019', 'Malafr#1')
+auth = ('mosquito2019', 'Malafr#1')
 
 s3 = boto3.resource(
     's3')
@@ -127,10 +129,10 @@ def calcDistrictStats(districtVariable):
             maxval = max(districtVariable[dist])
             minval = min(districtVariable[dist])
         else:
-            mean = -9999.0
-            median = -9999.0
-            maxval = -9999.0
-            minval = -9999.0
+            mean = missing_value
+            median = missing_value
+            maxval = missing_value
+            minval = missing_value
         #        meadian_high = statistics.median_high(districtVariable[dist])
         #        meadian_low = statistics.median_low(districtVariable[dist])
         #        std_dev = statistics.stdev(districtVariable[dist])
@@ -155,16 +157,85 @@ def find_maxmin_latlon(lat,lon,minlat,minlon,maxlat,maxlon):
         minlon = lon
     return minlat,minlon,maxlat,maxlon
 
-def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls, dhis_dist_version):
+def download_opendap(url, filename):
+    # Use the requests library to submit the HTTP_Services URLs and write out the results.
+    s = requests.Session()
+    s.auth = auth
+
+    try:
+        r1 = s.request('get', url)
+        result = s.get(r1.url)
+        result.raise_for_status()
+        tmpfn = '/tmp/' + filename
+        f = open(tmpfn, 'wb')
+        f.write(result.content)
+        f.close()
+        print("downloaded url: "+ url)
+
+    except Exception as e:
+        print('Exception ',e)
+        print("Error: failed to download url: "+ url)
+        sys.exit(1)
+
+    return tmpfn
+def get_variable(nc,var_name, x_start_stride_stop, y_start_stride_stop):
+    x_start = 0
+    x_stride = 0
+    x_stop = 0
+    y_start = 0
+    y_stride = 0
+    y_stop = 0
+    if ':' in x_start_stride_stop:
+        x_start = int(x_start_stride_stop[1:-1].split(':')[0])
+        x_stride = int(x_start_stride_stop[1:-1].split(':')[1])
+        x_stop = int(x_start_stride_stop[1:-1].split(':')[2])
+    if ':' in y_start_stride_stop:
+        y_start = int(y_start_stride_stop[1:-1].split(':')[0])
+        y_stride = int(y_start_stride_stop[1:-1].split(':')[1])
+        y_stop = int(y_start_stride_stop[1:-1].split(':')[2])
+        #subset_string=subset_string+'_'+str(y_start)+'_'+str(y_stride)+'_'+str(y_stop)
+    retry = 0
+    var = None
+    while True:
+        try:
+            if len(x_start_stride_stop) > 0 and len(y_start_stride_stop) > 0:
+                print("subsetting  variable " +var_name + ":"+ x_start_stride_stop + y_start_stride_stop)
+                print("dimensions ", ma.getdata(nc.variables[var_name]).shape)
+                # variables are indexed y,x
+                variable = nc.variables[var_name][y_start:y_stop:y_stride,x_start:x_stop:x_stride]
+                print("new dimensions ", ma.getdata(variable).shape)
+            else:
+                variable = nc.variables[var_name][:]
+            success = True
+            print("Successfully read ", var_name)
+            break
+        except Exception as e:
+            print("Exception ", e)
+            print("Network error reading variable ", var_name)
+            retry = retry + 1
+            print("retry ", retry, " of ", max_retries, "...")
+            if retry < max_retries:
+                sleep(sleep_secs)
+                continue
+            else:
+                print("retries: ", retry)
+                raise Exception("Network error reading variable" + var_name ) from e
+        break
+    return variable
+
+def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls,
+                  x_start_stride_stop, y_start_stride_stop, dhis_dist_version):
 
     # dictionaries for computing stats by district
     districtVariable = {}
     #districtVariableStats = {}
     #districtPolygons = {}
 
+    # subset_str = '_'+x_start_stride_stop.replace('[','').replace(']','').replace(':','_').strip()+'_'+\
+    #              y_start_stride_stop.replace('[','').replace(']','').replace(':','_').strip()
+    # print('subset_str ',subset_str)
     districts = geometry["boundaries"]
     dateStr = ""
-
     # all urls are for the same date
     for opendapUrl in opendapUrls:
         # look for district tile mapping files
@@ -177,9 +248,11 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
         mod_ver = base.split('.')[3]
 
         district_i_j_list = {}
-        tile_file = data_type+"_"+mod_ver+"_"+tile_str+"_"+dhis_dist_version+".pkl"
+#        tile_file = data_type+'_'+mod_ver+'_'+tile_str+'_'+dhis_dist_version+subset_str+'.pkl'
+        tile_file = data_type+'_'+mod_ver+'_'+tile_str+'_'+dhis_dist_version+'.pkl'
         tile_map_exists = False
-        #check for existence of file
+        #check for existence of tile file
+        print("checking for tile file...")
         try:
             s3.Bucket(bucket).download_file("mod_tile/"+tile_file, "/tmp/"+tile_file)
         except botocore.exceptions.ClientError as e:
@@ -189,7 +262,9 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
                 print("tile map file " + tile_file + " doesn't exist, creating...")
             else:
                 # Something else has gone wrong.
-                raise
+                print("error reading tile map file")
+                print("error: ", e)
+                raise Exception("error reading tile map file") from e
         else:
             # The object does exist, read it into numpy dictionary and set flag
             print("loading tile map file " + tile_file)
@@ -198,17 +273,20 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
             district_i_j_list = pickle.load(f)
             f.close()
 
+        print("opening url ",opendapUrl)
+        #netcdf_file = download_opendap(opendapUrl, str(opendapUrl).split('?')[0].split('/')[-1])
+        netcdf_file = opendapUrl
         # add error check and retry to this
         retry = 0
         while True:
             try:
-                nc = NetCDFFile(opendapUrl)
+                nc = NetCDFFile(netcdf_file)
                 success = True
-                print("Successfully opened url ", opendapUrl)
+                print("Successfully opened url ", netcdf_file)
                 break
             except Exception as e:
                 print("Exception ",e)
-                print("Network error opening url ", opendapUrl)
+                print("Network error opening url ", netcdf_file)
                 retry = retry + 1
                 print("retry ", retry, " of ", max_retries, "...")
                 if retry < max_retries:
@@ -233,8 +311,12 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
         #     break
 
         # auto scale doesn't seem to work on temp data, so set to false and manually scale
+        print("reading variables...")
         nc.set_auto_scale(False)
-        variable = nc.variables[var_name][:]
+        variable = get_variable(nc,var_name, x_start_stride_stop, y_start_stride_stop)
+        if variable is None:
+            print("Network error reading variable "+var_name)
+            raise Exception("Network error reading variable "+var_name)
         #print("variable.data:  " + var_name + " ", variable.data)
         mask = ma.getmask(variable)
         scale_factor = getattr(nc.variables[var_name], 'scale_factor')
@@ -255,20 +337,23 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
         print("valid_min ", valid_min)
         print("valid_max ", valid_max)
 
-        lat = nc.variables['Latitude'][:]
-        lon = nc.variables['Longitude'][:]
+        lat = get_variable(nc,'Latitude', x_start_stride_stop, y_start_stride_stop)
+        if lat is None:
+            print("Network error reading Latitude")
+            raise Exception("Network error reading Latitude ")
+        lon = get_variable(nc,'Longitude', x_start_stride_stop, y_start_stride_stop)
+        if lon is None:
+            print("Network error reading Longitude")
+            raise Exception("Network error reading Longitude ")
+
         # need to get masked values, and scale using attribute scale_factor
         #print("mask:  " + var_name + " ", mask)
-
-        #print("lat ", lat[0][0], "lon", lon[0][0])
-        #print("lat.shape[0]", lat.shape[0])
-        #print("lat.shape[1]", lat.shape[1])
 
         # strip out yyyyddd from opendap url
         tempStr = os.path.basename(opendapUrl).split('.')[1]
         year = int(tempStr[1:5])
         days = int(tempStr[5:8])
-        #print("year "+str(year)+ " days "+str(days))
+        print("year "+str(year)+ " days "+str(days))
         startTime = datetime.datetime(year, 1, 1) + datetime.timedelta(days - 1)
         dateStr = startTime.strftime("%Y%m%d")
 
@@ -351,8 +436,13 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
     outputJson = []
     for key in districtVariableStats.keys():
         value = districtVariableStats[key][statType]
-        jsonRecord = {'dataElement':dataElement,'period':dateStr,'orgUnit':key,'value':value}
-        outputJson.append(jsonRecord)
+        jsonRecord = {'dataElement': dataElement, 'period': dateStr, 'orgUnit': key, 'value': value}
+        # TODO test this...
+        if not return_missing_values:
+            if value != missing_value:
+                outputJson.append(jsonRecord)
+        else:
+            outputJson.append(jsonRecord)
 
     return outputJson
 
@@ -649,7 +739,8 @@ def lambda_handler(event, context):
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "Constructing OpenDAP URLs",
                             creation_time=creation_time_in, dataset=dataset)
-        opendap_urls = get_opendap_urls(var_name,x_start_stride_stop, y_start_stride_stop, filenames)
+        #opendap_urls = get_opendap_urls(var_name,x_start_stride_stop, y_start_stride_stop, filenames)
+        opendap_urls = get_opendap_urls(var_name, '', '', filenames)
 
         print("opendap_urls: ", opendap_urls)
         # use netcdf to directly access the opendap URLS and return the variables we want
@@ -675,9 +766,11 @@ def lambda_handler(event, context):
                 # nc.close()
             try:
                 jsonRecords = process_files(bucket, geometryJson, data_element_id, statType, var_name,
-                                        opendap_urls[date], dhis_dist_version+add_string)
+                                        opendap_urls[date], x_start_stride_stop, y_start_stride_stop,
+                                        dhis_dist_version+add_string)
                 print("Successfully processed  files for date ", date)
-            except:
+            except Exception as e:
+                print("returning exception ",e)
                 print("Error reading files for date ", date, " exiting...")
                 #continue
                 update_status_on_s3(s3.Bucket(data_bucket), request_id, "download", "failed",
