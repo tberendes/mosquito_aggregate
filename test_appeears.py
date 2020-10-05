@@ -61,6 +61,8 @@ def main():
     #     "token": "31ncqphv-1jpPjcTe-hgWXM2xZ1bBqQxST5pcieiHKq0cMwz8IFKOxG3FZgLQonk8hBsLV_ruAqikYXfzWy7kw",
     #     "expiration": "2017-10-12T19:32:05Z"
     # }
+
+    # can be read out of JSON file instead
     product = "MOD11A2.006"
     layer = "LST_Day_1km"
 
@@ -78,7 +80,7 @@ def main():
     # layer = "SDS_LST"
     # start_date = "07-09-2018"
     # end_date = "12-31-2018"
-    payload = "sample_payload_MOD11B2.json"
+    payload = "sample_payload_MOD11A2.json"
     outDir = "test"
 
     with open(payload) as f:
