@@ -118,6 +118,10 @@ def lambda_handler(event, context):
         downloadJson["y_start_stride_stop"] = event["y_start_stride_stop"]
     if 'dhis_dist_version' in event:
         downloadJson["dhis_dist_version"] = event["dhis_dist_version"]
+    if 'auth_name' in event:
+        downloadJson["auth_name"] = event["auth_name"]
+    if 'auth_pw' in event:
+        downloadJson["auth_pw"] = event["auth_pw"]
     download_param_pathname = ""
     if dataset.lower() == 'precipitation' or dataset.lower() == 'temperature' \
             or dataset.lower() == 'vegetation':

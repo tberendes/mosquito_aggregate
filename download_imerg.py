@@ -12,7 +12,7 @@ from mosquito_util import load_json_from_s3, update_status_on_s3
 
 data_bucket = "mosquito-data"
 
-auth = ('mosquito2019', 'Malafr#1')
+#auth = ('mosquito2019', 'Malafr#1')
 
 s3 = boto3.resource(
     's3')
@@ -61,7 +61,7 @@ def update_status_test(bucket, request_id, type, status, message):
     test_count = test_count + 1
 
 
-def download_imerg(subset_request, request_id, creation_time_in, dataset_name):
+def download_imerg(subset_request, request_id, creation_time_in, dataset_name, auth):
     # Define the parameters for the data subset
     download_results = []
     # Submit the subset request to the GES DISC Server
@@ -253,6 +253,10 @@ def lambda_handler(event, context):
         if "var_name" in input_json:
             varName = input_json['var_name']
         print('var_name' + varName)
+        # default
+        auth = ('mosquito2019', 'Malafr#1')
+        if 'auth_name' in input_json and 'auth_pw' in input_json:
+            auth = (input_json["auth_name"], input_json["auth_pw"])
 
         data_element_id = input_json['data_element_id']
 
@@ -290,7 +294,7 @@ def lambda_handler(event, context):
             }
         }
 
-        download_results = download_imerg(subset_request, request_id, creation_time_in, dataset)
+        download_results = download_imerg(subset_request, request_id, creation_time_in, dataset, auth)
 
         # need error check on download_imerg
 
