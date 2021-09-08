@@ -108,7 +108,8 @@ def accumVariableByDistrict(polylist, variable, mask, lat, lon, districtVariable
 def accumVariableByDictionary(variable, districtVariable, district_i_j_list,
                             valid_min, valid_max):
     for district, coords in district_i_j_list.items():
-        districtVariable[district] = []
+        if district not in districtVariable:
+            districtVariable[district] = []
         for i_j in coords:
             i = i_j[0]
             j = i_j[1]
@@ -312,39 +313,60 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
 
         # auto scale doesn't seem to work on temp data, so set to false and manually scale
         print("reading variables...")
-        nc.set_auto_scale(False)
-        variable = get_variable(nc,var_name, x_start_stride_stop, y_start_stride_stop)
-        if variable is None:
-            print("Network error reading variable "+var_name)
-            raise Exception("Network error reading variable "+var_name)
-        #print("variable.data:  " + var_name + " ", variable.data)
-        mask = ma.getmask(variable)
-        scale_factor = getattr(nc.variables[var_name], 'scale_factor')
-        #print("scale_factor", scale_factor)
-        add_offset = getattr(nc.variables[var_name], 'add_offset')
-        #print("add_offset", add_offset)
-        #modis_var = ma.getdata(variable)
-        modis_var = ma.getdata(variable) * scale_factor+add_offset
-        #print("scaled variable:  " + var_name + " ", modis_var)
-        valid_range = getattr(nc.variables[var_name], 'valid_range')
-        print("variable ", var_name, "valid_range", valid_range)
-        valid_min=float(valid_range[0])*scale_factor+add_offset
-        valid_max=float(valid_range[1])*scale_factor+add_offset
-        if valid_max < valid_min: # unsigned short int interpreted as negative
-            print("valid_max < valid_min, converting from unsigned short...")
-            valid_max = float(int(valid_range[1]& 0xffff))*scale_factor+add_offset
 
-        print("valid_min ", valid_min)
-        print("valid_max ", valid_max)
+        retry = 0
+        while True:
+            try:
 
-        lat = get_variable(nc,'Latitude', x_start_stride_stop, y_start_stride_stop)
-        if lat is None:
-            print("Network error reading Latitude")
-            raise Exception("Network error reading Latitude ")
-        lon = get_variable(nc,'Longitude', x_start_stride_stop, y_start_stride_stop)
-        if lon is None:
-            print("Network error reading Longitude")
-            raise Exception("Network error reading Longitude ")
+                nc.set_auto_scale(False)
+                print("reading variable...")
+                variable = get_variable(nc,var_name, x_start_stride_stop, y_start_stride_stop)
+                # if variable is None:
+                #     print("Network error reading variable "+var_name)
+                #     raise Exception("Network error reading variable "+var_name)
+                #print("variable.data:  " + var_name + " ", variable.data)
+                mask = ma.getmask(variable)
+                print("reading attributes...")
+                scale_factor = getattr(nc.variables[var_name], 'scale_factor')
+                #print("scale_factor", scale_factor)
+                add_offset = getattr(nc.variables[var_name], 'add_offset')
+                #print("add_offset", add_offset)
+                #modis_var = ma.getdata(variable)
+                modis_var = ma.getdata(variable) * scale_factor+add_offset
+                #print("scaled variable:  " + var_name + " ", modis_var)
+                valid_range = getattr(nc.variables[var_name], 'valid_range')
+                print("variable ", var_name, "valid_range", valid_range)
+                valid_min=float(valid_range[0])*scale_factor+add_offset
+                valid_max=float(valid_range[1])*scale_factor+add_offset
+                if valid_max < valid_min: # unsigned short int interpreted as negative
+                    print("valid_max < valid_min, converting from unsigned short...")
+                    valid_max = float(int(valid_range[1]& 0xffff))*scale_factor+add_offset
+
+                print("valid_min ", valid_min)
+                print("valid_max ", valid_max)
+
+                print("reading lat...")
+                lat = get_variable(nc,'Latitude', x_start_stride_stop, y_start_stride_stop)
+                # if lat is None:
+                #     print("Network error reading Latitude")
+                #     raise Exception("Network error reading Latitude ")
+                print("reading lon...")
+                lon = get_variable(nc,'Longitude', x_start_stride_stop, y_start_stride_stop)
+                # if lon is None:
+                #     print("Network error reading Longitude")
+                #     raise Exception("Network error reading Longitude ")
+            except:
+                print("Exception ", e)
+                print("Network error reading data ", netcdf_file)
+                retry = retry + 1
+                print("retry ", retry, " of ", max_retries, "...")
+                if retry < max_retries:
+                    sleep(sleep_secs)
+                    continue
+                else:
+                    print("retries: ", retry)
+                    raise Exception("Network error reading file, maximum retries exceeded") from e
+            break
 
         # need to get masked values, and scale using attribute scale_factor
         #print("mask:  " + var_name + " ", mask)
@@ -422,17 +444,17 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
     # reformat new json structure
 #    outputJson = {'dataValues' : []}
     districtVariableStats = calcDistrictStats(districtVariable)
-    for district in districts:
-       # name = district['properties']['name']
-        dist_id = district['id']
-        name = district['name']
-        #print("district name ", name)
-        #print("district id", dist_id)
-        #print("mean Variable ", districtVariableStats[dist_id]['mean'])
-        #print("median Variable ", districtVariableStats[dist_id]['median'])
-        #print("max Variable ", districtVariableStats[dist_id]['max'])
-        #print("min Variable ", districtVariableStats[dist_id]['min'])
-        #print("count ", districtVariableStats[dist_id]['count'])
+    # for district in districts:
+    #    # name = district['properties']['name']
+    #     dist_id = district['id']
+    #     name = district['name']
+    #     print("district name ", name)
+    #     print("district id", dist_id)
+    #     print("mean Variable ", districtVariableStats[dist_id]['mean'])
+    #     print("median Variable ", districtVariableStats[dist_id]['median'])
+    #     print("max Variable ", districtVariableStats[dist_id]['max'])
+    #     print("min Variable ", districtVariableStats[dist_id]['min'])
+    #     print("count ", districtVariableStats[dist_id]['count'])
     outputJson = []
     for key in districtVariableStats.keys():
         value = districtVariableStats[key][statType]
@@ -454,6 +476,7 @@ def load_json(bucket, key):
     download_fn=key_split[len(key_split) - 1]
     file = "/tmp/" + download_fn
     s3.Bucket(bucket).download_file(key, file)
+
 
     try:
         with open(file) as f:
@@ -629,8 +652,8 @@ def lambda_handler(event, context):
         request_id = input_json["request_id"]
         print("request_id ", request_id)
 
-        start_date = input_json['start_date']
-        end_date = input_json['end_date']
+        start_date = input_json['start_date'].split('T')[0]
+        end_date = input_json['end_date'].split('T')[0]
         #begTime = '2015-08-01T00:00:00.000Z'
         #endTime = '2015-08-01T23:59:59.999Z'
 
@@ -651,6 +674,7 @@ def lambda_handler(event, context):
         tiles = []
         min_h, min_v = get_tile_hv(minlon,maxlat, data)
         max_h, max_v = get_tile_hv(maxlon,minlat, data)
+
         print("min_h ",min_h)
         print("max_h ",max_h)
         print("min_v ",min_v)
@@ -659,14 +683,16 @@ def lambda_handler(event, context):
             for j in range(min_v,max_v+1):
                 tiles.append([i,j])
         print("tiles: ", tiles)
+
         creation_time_in = input_json['creation_time']
+        date_range_in = start_date + " -> "+ end_date
 
         geometryJson = load_json_from_s3(s3.Bucket(bucket), "requests/geometry/" + request_id +"_geometry.json")
         if "message" in geometryJson and geometryJson["message"] == "error":
             update_status_on_s3(s3.Bucket(bucket),request_id, "aggregate", "failed",
                                "aggregate_imerge could not load geometry file " +
                                "requests/geometry/" + request_id +"_geometry.json",
-                                creation_time=creation_time_in, dataset=dataset)
+                                creation_time=creation_time_in, date_range=date_range_in, dataset=dataset)
             sys.exit(1)
 
         # defaults
@@ -700,8 +726,6 @@ def lambda_handler(event, context):
         modis_version_string = '{:d}'.format(modis_version)
         print("modis_version_string " + modis_version_string)
         product = input_json['product']
-        start_date = input_json['start_date'].split('T')[0]
-        end_date = input_json['end_date'].split('T')[0]
         var_name = input_json['var_name']
         x_start_stride_stop = ""
         if "x_start_stride_stop" in input_json:
@@ -725,7 +749,8 @@ def lambda_handler(event, context):
         # we need and we can get corresponding lat/lon as variables and we don't have to deal with sinusoidal projection
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "retrieving filenames",
-                            creation_time=creation_time_in, dataset=dataset)
+                            creation_time=creation_time_in, date_range=date_range_in, dataset=dataset)
+
 
         #start_year = int(start_date[0:4])
         #end_year = int(end_date[0:4])
@@ -738,7 +763,7 @@ def lambda_handler(event, context):
 
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "Constructing OpenDAP URLs",
-                            creation_time=creation_time_in, dataset=dataset)
+                            creation_time=creation_time_in, date_range=date_range_in, dataset=dataset)
         #opendap_urls = get_opendap_urls(var_name,x_start_stride_stop, y_start_stride_stop, filenames)
         opendap_urls = get_opendap_urls(var_name, '', '', filenames)
 
@@ -752,7 +777,7 @@ def lambda_handler(event, context):
         for date in opendap_urls.keys():
             update_status_on_s3(s3.Bucket(data_bucket), request_id,
                                 "aggregate", "working", "Aggregating file " + str(fileCnt) + " of " + str(numFiles),
-                                creation_time=creation_time_in, dataset=dataset)
+                                creation_time=creation_time_in, date_range=date_range_in, dataset=dataset)
  #           for opendap_url in opendap_urls[date]:
                 # nc = NetCDFFile(opendap_url)
                 # variable = nc.variables[var_name][:]
@@ -775,7 +800,7 @@ def lambda_handler(event, context):
                 #continue
                 update_status_on_s3(s3.Bucket(data_bucket), request_id, "download", "failed",
                                     "Error reading files for date" + date,
-                                    creation_time=creation_time_in, dataset=dataset)
+                                    creation_time=creation_time_in, date_range=date_range_in, dataset=dataset)
                 exit(-1)
             for record in jsonRecords:
                 outputJson['dataValues'].append(record)
@@ -787,7 +812,8 @@ def lambda_handler(event, context):
         s3.Bucket(bucket).upload_file("/tmp/" + request_id+"_result.json", "results/" +request_id+".json")
 
     update_status_on_s3(s3.Bucket(data_bucket),request_id, "aggregate", "success",
-                       "All requested files successfully aggregated", creation_time=creation_time_in, dataset=dataset)
+                       "All requested files successfully aggregated", creation_time=creation_time_in,
+                        date_range=date_range_in, dataset=dataset)
 
 
 # if __name__ == '__main__':
