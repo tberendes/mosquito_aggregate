@@ -1,3 +1,4 @@
 /.aws-sam/
 /venv/
 /venv_new/
+/.idea/
