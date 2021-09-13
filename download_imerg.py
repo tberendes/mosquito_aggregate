@@ -12,7 +12,7 @@ from mosquito_util import load_json_from_s3, update_status_on_s3
 
 data_bucket = "mosquito-data"
 
-#auth = ('mosquito2019', 'Malafr#1')
+# auth = ('mosquito2019', 'Malafr#1')
 
 s3 = boto3.resource(
     's3')
@@ -213,16 +213,29 @@ def lambda_handler(event, context):
 
     global test_count
     test_count = 0
-    for record in event['Records']:
-        bucket = record['s3']['bucket']['name']
-        key = unquote_plus(record['s3']['object']['key'])
 
-        #        input_json = load_json(bucket, key)
-        input_json = load_json_from_s3(s3.Bucket(bucket), key)
-        if "message" in input_json and input_json["message"] == "error":
-            update_status_on_s3(s3.Bucket(data_bucket), request_id, "download", "failed",
-                                "load_json_from_s3 could not load " + key)
-            sys.exit(1)
+    test_mode = False
+    if 'Records' not in event:
+        test_mode = True
+        print(event)
+        event['Records'] = [event]
+
+    for record in event['Records']:
+
+        if not test_mode:
+            bucket = record['s3']['bucket']['name']
+            key = unquote_plus(record['s3']['object']['key'])
+
+            #        input_json = load_json(bucket, key)
+            input_json = load_json_from_s3(s3.Bucket(bucket), key)
+            if "message" in input_json and input_json["message"] == "error":
+                update_status_on_s3(s3.Bucket(data_bucket), request_id, "aggregate", "failed",
+                                    "load_json_from_s3 could not load " + key)
+                sys.exit(1)
+        else:
+            bucket = data_bucket
+            print("record ", record)
+            input_json = record
 
         dataset = input_json["dataset"]
         org_unit = input_json["org_unit"]

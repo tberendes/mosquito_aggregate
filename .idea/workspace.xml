@@ -4,8 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c25fb7d0-2edc-4dbf-811e-812bcf1be1a3" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="c25fb7d0-2edc-4dbf-811e-812bcf1be1a3" name="Default Changelist" comment="fixed tile errors in download_aggregate_modis.py, added Guinea payloads">
+      <change afterPath="$PROJECT_DIR$/sample_payload_guinea_imerg_precip.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/aggregate_imerg.py" beforeDir="false" afterPath="$PROJECT_DIR$/aggregate_imerg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/download_aggregate_modis.py" beforeDir="false" afterPath="$PROJECT_DIR$/download_aggregate_modis.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/download_imerg.py" beforeDir="false" afterPath="$PROJECT_DIR$/download_imerg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_get_result.json" beforeDir="false" afterPath="$PROJECT_DIR$/test_get_result.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,7 +54,7 @@
     <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="settings.editor.selected.configurable" value="aws" />
     <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/download_aggregate_modis.py" />
   </component>
   <component name="PyConsoleOptionsProvider">
@@ -142,7 +148,7 @@
       <option name="credentialProviderId" value="profile:MoSqUITO-SvcDev" />
       <option name="regionId" value="us-east-1" />
       <option name="functionName" value="start_cloud_workflow" />
-      <option name="input" value="$PROJECT_DIR$/sample_payload_guinea_modis_ndvi.json" />
+      <option name="input" value="$PROJECT_DIR$/sample_payload_imerg_precip.json" />
       <option name="inputIsFile" value="true" />
       <method v="2" />
     </configuration>
@@ -379,7 +385,14 @@
       <option name="project" value="LOCAL" />
       <updated>1631131704438</updated>
     </task>
-    <option name="localTasksCounter" value="30" />
+    <task id="LOCAL-00030" summary="fixed tile errors in download_aggregate_modis.py, added Guinea payloads">
+      <created>1631131882231</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1631131882231</updated>
+    </task>
+    <option name="localTasksCounter" value="31" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
