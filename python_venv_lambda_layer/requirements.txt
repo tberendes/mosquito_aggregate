@@ -1,0 +1,10 @@
+netCDF4
+matplotlib
+boto3
+botocore
+certifi
+requests
+urllib3
+pillow
+numpy
+bs4
