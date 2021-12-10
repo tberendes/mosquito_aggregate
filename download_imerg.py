@@ -254,6 +254,21 @@ def lambda_handler(event, context):
         maxlat = input_json['max_lat']
         creation_time_in = input_json['creation_time']
 
+        # add a 0.2 degree border (~2 IMERG pixels) around image to
+        # allow closer cropping by small regions.  There seems to be
+        # some rounding errors at the borders that cut data out of
+        # regions when the image is cropped tightly to the geojson
+        # polygons.  This supports individual image orders for
+        # districts and smaller areas
+        if (minlon - 0.2) >= -180.0:
+            minlon = minlon - 0.2
+        if (maxlon + 0.2) <= 180.0:
+            maxlon = maxlon + 0.2
+        if (minlat - 0.2) >=-90.0:
+            minlat = minlat - 0.2
+        if (maxlat + 0.2) <= 90.0:
+            maxlat = maxlat + 0.2
+
         statType = 'mean'
         product = 'GPM_3IMERGDF_06'
         varName = 'precipitationCal'

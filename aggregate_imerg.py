@@ -75,6 +75,7 @@ def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip, minlat, mi
             districtPrecip[poly.get_label()] = []
         #        for ptLat,ptLon,val in lat,lon,precip:
         #        print("poly ", poly.get_label())
+        path = mpltPath.Path(poly.xy)
         for i in range(lon.shape[0]):
             if lon[i] < minlon or lon[i] > maxlon:
                 continue
@@ -84,7 +85,6 @@ def accumPrecipByDistrict(polylist, precip, lat, lon, districtPrecip, minlat, mi
                     continue
                 #                print("j ",j)
                 #                print("lat ", lat[i], " lon ", lon[j], " poly ", poly.get_label())
-                path = mpltPath.Path(poly.xy)
                 inside = path.contains_point((lon[i], lat[j]))
                 if inside:
                     # add precip value to district
