@@ -2,7 +2,6 @@ import cgi
 import os
 import json
 import sys
-import copy
 from csv import DictReader
 
 import requests
@@ -29,10 +28,12 @@ def main():
     geojson_boundaries = "zimbabwe_shapes.json"
 
     # main parameters
-    start_date = "2019-08-01T00:00:00.000Z"
-    end_date =   "2019-08-02T00:00:00.000Z"
-    data_type = "precip" # "temp", "ndvi"
-    dist_version_string = "zimbabwe"
+#    start_date = "2019-08-01T00:00:00.000Z"
+#    end_date =   "2019-08-02T00:00:00.000Z"
+    start_date = "2018-03-01T00:00:00.000Z"
+    end_date =   "2018-03-31T00:00:00.000Z"
+    data_type = "temp" # "temp", "ndvi", "precip"
+    dist_version_string = "zimbabwe_1"
 
     sdate=start_date.split("T")[0].replace("-","")
     edate=end_date.split("T")[0].replace("-","")
@@ -78,103 +79,94 @@ def main():
     with open(geojson_boundaries) as f:
         geojsonData = json.load(f)
 
-    # organize geojson boundaries by province
-    config_by_province = {}
+    # set up all boundaries in geojson config file
+    config = jsonData
+    config['dhis_dist_version'] = dist_version_string
     for feature in geojsonData['features']:
         geometry = feature['geometry']
         properties = feature['properties']
         district = properties['district']
         province = properties['province']
         boundary = {"level":2,"name":province+'-'+district,"id":province+'-'+district, "geometry":geometry}
-        if province not in config_by_province:
-            config_by_province[province] = copy.deepcopy(jsonData)
-            ver_str = dist_version_string + province.replace(" ","_")+'-'+district.replace(" ","")
-            config_by_province[province]['dhis_dist_version']=ver_str
-        config_by_province[province]['boundaries'].append(boundary)
+        config['boundaries'].append(boundary)
 
     #with open(geojson_boundaries+".sav", 'w') as f:
     #    json.dump(jsonData, f)
     #sys.exit()
 
-    # submit jobs
-    request_ids = []
-    for province in config_by_province.keys():
-        print('province '+province)
-        try:
-            # Post json to the API task service, return response as json
-            #hdrs = {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Content-Encoding': 'gzip'}
-            hdrs = {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}
-            print("Starting AWS cloud workflow...")
-            print("dataset: ", jsonData['dataset'])
-            print("product: ", jsonData['product'])
-            print("var_name: ", jsonData['var_name'])
+    # submit job
+    try:
+        # Post json to the API task service, return response as json
+        #hdrs = {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Content-Encoding': 'gzip'}
+        hdrs = {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}
+        print("Starting AWS cloud workflow...")
+        print("dataset: ", jsonData['dataset'])
+        print("product: ", jsonData['product'])
+        print("var_name: ", jsonData['var_name'])
 
-            # start workflow and return request_id
-            task_response = post(start_url, config_by_province[province], hdrs, 120.0)
-            # print("task response", task_response.json())
-            resp = task_response.json()
+        # start workflow and return request_id
+        task_response = post(start_url, config, hdrs, 120.0)
+        # print("task response", task_response.json())
+        resp = task_response.json()
 
-            if 'request_id' not in resp:
-                print("error starting aws workflow: ", resp)
-                exit(-1)
+        if 'request_id' not in resp:
+            print("error starting aws workflow: ", resp)
+            exit(-1)
 
-            request_ids.append(resp['request_id'])
-            print('submitted request id '+resp['request_id'])
+        request_id = resp['request_id']
+        print('submitted request id '+resp['request_id'])
 
-        except Exception as e:
-            print("Exception: ", e)
+    except Exception as e:
+        print("Exception: ", e)
 
     if os.path.isfile(outfile):
         os.remove(outfile)
     with open(outfile, 'w') as f:
-        f.write('date,province,district,'+datatype+'\n')
-#        f.write('date,province,district,value\n')
+        f.write('date,province,district,'+data_type+'\n')
 
 
-    # loop through requests and check job status
-    jobcnt = 0
-    for request_id in request_ids:
-        print('checking request_id ' + request_id)
-        try:
-            # check status in loop, loop until job is finished
-            count = 0
-            while True:
-                task_response = post(download_url, {'request_id':request_id}, hdrs, 120.0)
-                # print("task response", task_response.json())
-                statusJson = task_response.json()
-                if 'error' in statusJson:
-                    print("error checking AWS order status: ", statusJson['error'])
-                    exit(-1)
-                print(statusJson)
+    # check job status
+    print('checking request_id ' + request_id)
+    try:
+        # check status in loop, loop until job is finished
+        count = 0
+        while True:
+            task_response = post(download_url, {'request_id':request_id}, hdrs, 120.0)
+            # print("task response", task_response.json())
+            statusJson = task_response.json()
+            if 'error' in statusJson:
+                print("error checking AWS order status: ", statusJson['error'])
+                exit(-1)
+            print(statusJson)
 
-                if statusJson["status"] == "failed":
-                    print("AWS order failed: ", statusJson)
-                    exit(-1)
-                elif statusJson["status"] == "success":
-                    result = statusJson["result"]
-                    break
-                else:
-                    print("order status: ", statusJson["status"], ' Message: ',statusJson["message"])
-                    sleep(5)
-                count = count+1
-                print("count ", count)
-                if count > 180: # 15 minute maximum for AWS lambda
-                    print("request timed out ")
-                    exit(-1)
-            print("request "+request_id+" finished")
+            if statusJson["status"] == "failed":
+                print("AWS order failed: ", statusJson)
+                exit(-1)
+            elif statusJson["status"] == "success":
+                result = statusJson["result"]
+                break
+            else:
+                print("order status: ", statusJson["status"], ' Message: ',statusJson["message"])
+                sleep(5)
+            count = count+1
+            print("count ", count)
+            if count > 180: # 15 minute maximum for AWS lambda
+                print("request timed out ")
+                exit(-1)
+        print("request "+request_id+" finished")
 
-            print(result)
-            with open(outfile, 'a') as f:
-                for datavalue in result["dataValues"]:
-                    #process data value record
-                    f.write(datavalue['period']+','+datavalue['orgUnit'].replace('-',',')+','+str(datavalue['value'])+'\n')
-               #json.dump(result, f)
+        print(result)
+        with open(outfile, 'a') as f:
+            for datavalue in result["dataValues"]:
+                #process data value record
+                f.write(datavalue['period']+','+datavalue['orgUnit'].replace('-',',')+','+str(datavalue['value'])+'\n')
+           #json.dump(result, f)
 
-            # process csv file and create output records, if csv stats file not found, data is missing
+        # process csv file and create output records, if csv stats file not found, data is missing
 
-            #resp = logout(token)
-        except Exception as e:
-            print("Exception: ",e)
+        #resp = logout(token)
+    except Exception as e:
+        print("Exception: ",e)
     print("AWS cloud workflow complete!")
 
 if __name__ == '__main__':
