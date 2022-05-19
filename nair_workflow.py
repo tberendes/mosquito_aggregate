@@ -7,8 +7,8 @@ from csv import DictReader
 import requests
 from time import sleep
 
-start_url = "https://9t06h5m4bf.execute-api.us-east-1.amazonaws.com/default/start_cloud_workflow"
-download_url = "https://n9uowbutv1.execute-api.us-east-1.amazonaws.com/default/get_result"
+start_url = "https://9t06h5m4bf.execute-api.us-east-1.amazonaws.com/default/neoh_start_cloud_workflow"
+download_url = "https://n9uowbutv1.execute-api.us-east-1.amazonaws.com/default/neoh_get_result"
 
 def post(url, json_payload, hdrs, timeout):
     task_response=requests.post(url, json=json_payload, headers=hdrs, timeout=timeout)
@@ -23,16 +23,23 @@ def get(url, hdrs, timeout):
 
 def main():
 
-    #payload = "sample_payload_imerg_precip.json"
-    #payload = "sample_payload_modis_ndvi.json"
+    n = len(sys.argv)
+    if n < 4:
+        print("parameters: type YYYY-MM-DD YYYY-MM-DD")
+        exit(-1)
+    data_type=sys.argv[1]
+    start_date = sys.argv[2]+'T00:00:00.000Z'
+    end_date = sys.argv[3]+'T00:00:00.000Z'
+
     geojson_boundaries = "zimbabwe_shapes.json"
 
     # main parameters
 #    start_date = "2019-08-01T00:00:00.000Z"
 #    end_date =   "2019-08-02T00:00:00.000Z"
-    start_date = "2018-03-01T00:00:00.000Z"
-    end_date =   "2018-03-31T00:00:00.000Z"
-    data_type = "temp" # "temp", "ndvi", "precip"
+#    start_date = "2018-03-01T00:00:00.000Z"
+#    end_date =   "2018-03-31T00:00:00.000Z"
+#    data_type = "precip" # "temp", "ndvi", "precip"
+
     dist_version_string = "zimbabwe_1"
 
     sdate=start_date.split("T")[0].replace("-","")
@@ -48,12 +55,13 @@ def main():
     ndvi_template = {"dataset":"vegetation","org_unit":"district","stat_type":"mean","product": "MOD13A2",
                       "var_name":"_1_km_16_days_NDVI","x_start_stride_stop": "[0:5:1199]","y_start_stride_stop": "[0:5:1199]",
                       "agg_period":"daily","start_date":start_date,"end_date":end_date,
-                      "dhis_dist_version":"zimbabwe","data_element_id":"9999","boundaries":[]}
+                      "dhis_dist_version":"zimbabwe","data_element_id":"9999","boundaries":[],
+                      "hv_tilelist":[[20,11],[20,10],[21,11],[21,10]]}
     # temperature
     temperature_template = {"dataset":"temperature","org_unit":"district","stat_type":"mean","product": "MOD11B2",
                             "var_name":"LST_Day_6km","agg_period":"daily","start_date":start_date,
                             "end_date":end_date,"dhis_dist_version":"zimbabwe","data_element_id":"9999999",
-                            "boundaries":[]}
+                            "boundaries":[],"hv_tilelist":[[20,11],[20,10],[21,11],[21,10]]}
     # boundary = {"name": "Bok'e", "id": "9999", "geometry": {}}
     # select which product to use and set up template
     if data_type.lower() == 'precip':
@@ -82,6 +90,7 @@ def main():
     # set up all boundaries in geojson config file
     config = jsonData
     config['dhis_dist_version'] = dist_version_string
+    config['modis_version'] = '6' # 61 for version 6.1, currently missing 2016 so using 6
     for feature in geojsonData['features']:
         geometry = feature['geometry']
         properties = feature['properties']
@@ -103,6 +112,7 @@ def main():
         print("dataset: ", jsonData['dataset'])
         print("product: ", jsonData['product'])
         print("var_name: ", jsonData['var_name'])
+        print("start_date: ", sdate, " end_date: ",edate)
 
         # start workflow and return request_id
         task_response = post(start_url, config, hdrs, 120.0)
@@ -137,12 +147,14 @@ def main():
             if 'error' in statusJson:
                 print("error checking AWS order status: ", statusJson['error'])
                 exit(-1)
-            print(statusJson)
+
+            #print(statusJson)
 
             if statusJson["status"] == "failed":
                 print("AWS order failed: ", statusJson)
                 exit(-1)
             elif statusJson["status"] == "success":
+                print("order status: ", statusJson["status"], ' Message: ',statusJson["message"])
                 result = statusJson["result"]
                 break
             else:
@@ -150,12 +162,12 @@ def main():
                 sleep(5)
             count = count+1
             print("count ", count)
-            if count > 180: # 15 minute maximum for AWS lambda
+            if count > 200: # 15 minute maximum for AWS lambda + about 1 min
                 print("request timed out ")
                 exit(-1)
         print("request "+request_id+" finished")
 
-        print(result)
+        #print(result)
         with open(outfile, 'a') as f:
             for datavalue in result["dataValues"]:
                 #process data value record

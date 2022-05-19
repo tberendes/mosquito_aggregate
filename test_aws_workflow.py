@@ -6,8 +6,11 @@ from csv import DictReader
 import requests
 from time import sleep
 
-start_url = "https://9t06h5m4bf.execute-api.us-east-1.amazonaws.com/default/start_cloud_workflow"
-download_url = "https://n9uowbutv1.execute-api.us-east-1.amazonaws.com/default/get_result"
+start_url = "https://9t06h5m4bf.execute-api.us-east-1.amazonaws.com/default/neoh_start_cloud_workflow"
+download_url = "https://n9uowbutv1.execute-api.us-east-1.amazonaws.com/default/neoh_get_result"
+
+#start_url = "https://9t06h5m4bf.execute-api.us-east-1.amazonaws.com/default/start_cloud_workflow"
+#download_url = "https://n9uowbutv1.execute-api.us-east-1.amazonaws.com/default/get_result"
 
 def post(url, json_payload, hdrs, timeout):
     task_response=requests.post(url, json=json_payload, headers=hdrs, timeout=timeout)
@@ -24,7 +27,8 @@ def main():
 
     #payload = "sample_payload_imerg_precip.json"
     #payload = "sample_payload_modis_ndvi.json"
-    payload = "sample_payload_modis_temp.json"
+    #payload = "sample_payload_modis_temp.json"
+    payload = "test_aws_temp.json"
 
     with open(payload) as f:
         jsonData = json.load(f)

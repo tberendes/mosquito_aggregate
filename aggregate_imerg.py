@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------------------------
 #
-#  aggregate_data_orig.py
+#  aggregate_imerg.py
 #
 #  Description: as the file name suggests this script reads data from an subsetted IMERG Day granule, formatted in netCDF
 #               and parses out the values based on geographic polygons (districts) and generates a JSON return
@@ -340,5 +340,9 @@ def lambda_handler(event, context):
 
         s3.Bucket(bucket).upload_file("/tmp/" + request_id + "_result.json", "results/" + request_id + ".json")
 
-        update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "success", "Successfully processed "
-                            + str(num_files) + " files", creation_time=creation_time_in, dataset=dataset)
+        if num_files > 0:
+            update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "success", "Successfully processed "
+                           + str(num_files) + " files", creation_time=creation_time_in, dataset=dataset)
+        else:
+            update_status_on_s3(s3.Bucket(s3bucket), request_id, "aggregate", "success", "No files matching search criteria"
+                           , creation_time=creation_time_in, dataset=dataset)

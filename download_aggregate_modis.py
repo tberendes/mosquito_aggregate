@@ -24,10 +24,12 @@ import matplotlib.path as mpltPath
 from time import sleep
 
 data_bucket = "mosquito-data"
-max_retries = 10
+max_retries = 20
 sleep_secs = 5
 missing_value = -9999.0
 return_missing_values = False
+
+lambda_context = None
 
 auth = ('mosquito2019', 'Malafr#1')
 
@@ -185,7 +187,14 @@ def download_opendap(url, filename):
         sys.exit(1)
 
     return tmpfn
+def seconds_remaining():
+    return lambda_context.get_remaining_time_in_millis()*1000;
 
+def timeout_is_near():
+    if seconds_remaining() <= (sleep_secs * 2):
+        return True
+    else:
+        return False
 
 def get_variable(nc, var_name, x_start_stride_stop, y_start_stride_stop):
     x_start = 0
@@ -223,7 +232,7 @@ def get_variable(nc, var_name, x_start_stride_stop, y_start_stride_stop):
             print("Network error reading variable ", var_name)
             retry = retry + 1
             print("retry ", retry, " of ", max_retries, "...")
-            if retry < max_retries:
+            if retry < max_retries and not timeout_is_near():
                 sleep(sleep_secs)
                 continue
             else:
@@ -298,11 +307,11 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
                 print("Network error opening url ", netcdf_file)
                 retry = retry + 1
                 print("retry ", retry, " of ", max_retries, "...")
-                if retry < max_retries:
+                if retry < max_retries and not timeout_is_near():
                     sleep(sleep_secs)
                     continue
                 else:
-                    print("retries: ", retry)
+                    print("Network error opening url ",netcdf_file, " maximum retries exceeded: ", retry)
                     raise Exception("Network error opening url, maximum retries exceeded") from e
             break
 
@@ -362,12 +371,12 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
                 # if lon is None:
                 #     print("Network error reading Longitude")
                 #     raise Exception("Network error reading Longitude ")
-            except:
+            except Exception as e:
                 print("Exception ", e)
                 print("Network error reading data ", netcdf_file)
                 retry = retry + 1
                 print("retry ", retry, " of ", max_retries, "...")
-                if retry < max_retries:
+                if retry < max_retries and not timeout_is_near():
                     sleep(sleep_secs)
                     continue
                 else:
@@ -387,6 +396,14 @@ def process_files(bucket, geometry, dataElement, statType, var_name, opendapUrls
         dateStr = startTime.strftime("%Y%m%d")
 
         #    im = PIL.Image.new(mode="RGB", size=(lon.shape[0], lat.shape[0]), color=(255, 255, 255))
+
+        # make sure there is enough time left in the lambda fn to finish a file, return failure
+        # if time is too short.  This is the only way to gracefully handle the timeout of the lambda fn
+        # so we have a status to check at the end.
+
+        # require a minimum of 60 secs to finish processing a MODIS file
+        if seconds_remaining() < 30:
+            raise Exception("Less than 30 seconds remaining in lambda fn")
 
         for district in districts:
             if tile_map_exists:
@@ -496,6 +513,7 @@ def load_json(bucket, key):
 
 
 def get_tile_hv(lon, lat, data):
+    #NOTE: This is currently unreliable, use manual list instead!!!!!!!!!!!!!!!!!!!!!
     in_tile = False
     i = 0
     # find vertical and horizontal tile containing lat/lon point
@@ -521,7 +539,28 @@ def get_href(url, substr):
     contents = []
     # domain name of the URL without the protocol
     # print("url ", url)
-    soup = BeautifulSoup(requests.get(url).content, "html.parser")
+
+    # get request for URL
+    req = requests.get(url)
+    # check for status
+    retry = 0
+    while req.status_code != 200: # Not "ok"
+        print("get_href error in requests.get(), retrying...")
+        print("retry ", retry+1, " of ", max_retries, "...")
+        if retry < max_retries and not timeout_is_near():
+            req = requests.get(url)
+            if req.status_code == 200:
+                break
+            else:
+                sleep(sleep_secs)
+                retry = retry + 1
+        else:
+            print("exceeded maximum retries, retries: ", retry)
+            print("Error: get_href network error at "+url)
+            raise Exception("Error: get_href network error at "+url)
+    print("parsing url: "+url)
+
+    soup = BeautifulSoup(req.content, "html.parser")
 
     for a_tag in soup.findAll("a"):
         href = a_tag.attrs.get("href")
@@ -548,15 +587,19 @@ def get_dates(url, start_year, end_year):
     # all URLs of `url`
     dates = []
 
-    for year in range(start_year, end_year + 1):
-        # domain name of the URL without the protocol
-        # print("url ", url)
-        content = url + str(year) + "/contents.html"
-        # print("content ",content)
-        days = get_href(content, "contents.html")
-        # print("days ",days)
-        for day in days:
-            dates.append(day)
+    try:
+        for year in range(start_year, end_year + 1):
+            # domain name of the URL without the protocol
+            # print("url ", url)
+            content = url + str(year) + "/contents.html"
+            # print("content ",content)
+            days = get_href(content, "contents.html")
+            # print("days ",days)
+            for day in days:
+                dates.append(day)
+    except Exception as e:
+        raise e
+
     return dates
 
 
@@ -574,7 +617,12 @@ def get_filenames(url, start_date, end_date, tiles):
     end_year = int(end_date[0:4])
     # print("start year ", start_year, " end year ", end_year)
 
-    dates = get_dates(url, start_year, end_year)
+    try:
+        dates = get_dates(url, start_year, end_year)
+    except Exception as e:
+        print("Error in url: "+url)
+        print("cannot find filenames for "+start_year+" - "+ end_year)
+        raise e
 
     # strip out yyyyddd from opendap url i.e. 2015-08-01... YYYY-mm-dd
     year = int(start_date[0:4])
@@ -608,11 +656,13 @@ def get_filenames(url, start_date, end_date, tiles):
                 dayContents = get_href(date, hv_str)
                 for tile_file in dayContents:
                     # if str(tile_file).find(hv_str)>=0 and str(tile_file).endswith('hdf.html'):
-                    if str(tile_file).endswith('hdf.html'):
+#                    if str(tile_file).endswith('hdf.html'):
+                    if str(tile_file).endswith('hdf.dmr.html'):
                         if not tile_file in found_tiles.keys():
                             print("found file ", tile_file)
                             found_tiles[tile_file] = True
-                            files[date_str].append(str(tile_file).split('.html')[0])
+#                            files[date_str].append(str(tile_file).split('.html')[0])
+                            files[date_str].append(str(tile_file).split('.dmr.html')[0])
                         else:
                             continue
     return files
@@ -647,6 +697,8 @@ def lambda_handler(event, context):
     test_count = 0
     outputJson = {'dataValues': []}
 
+    global lambda_context
+    lambda_context = context
     test_mode = False
     if 'Records' not in event:
         test_mode = True
@@ -692,19 +744,25 @@ def lambda_handler(event, context):
                              skip_header=7,
                              skip_footer=3)
 
-        # find all MODIS Land tiles containing the region of interest
-        # tiles = [[16, 8]]
-        tiles = []
-        min_h, min_v = get_tile_hv(minlon, maxlat, data)
-        max_h, max_v = get_tile_hv(maxlon, minlat, data)
+        if 'hv_tilelist' in input_json:
+            tiles = input_json['hv_tilelist'] # i.e. [(20,11),(20,10)]  modis h,v sinusoidal tile indices
+        else:
+            # find all MODIS Land tiles containing the region of interest
+            # this section doesn't seem to work in general, better off finding tile indices manually and passing in json
+            # config file (above)
+            # tiles = [[16, 8]]
+            tiles = []
+            min_h, min_v = get_tile_hv(minlon, maxlat, data)
+            max_h, max_v = get_tile_hv(maxlon, minlat, data)
 
-        print("min_h ", min_h)
-        print("max_h ", max_h)
-        print("min_v ", min_v)
-        print("max_v ", max_v)
-        for i in range(min_h, max_h + 1):
-            for j in range(min_v, max_v + 1):
-                tiles.append([i, j])
+            print("min_h ", min_h)
+            print("max_h ", max_h)
+            print("min_v ", min_v)
+            print("max_v ", max_v)
+            for i in range(min_h, max_h + 1):
+                for j in range(min_v, max_v + 1):
+                    tiles.append([i, j])
+
         print("tiles: ", tiles)
 
         creation_time_in = input_json['creation_time']
@@ -723,7 +781,7 @@ def lambda_handler(event, context):
         product = 'MOD11B2'
         varName = 'LST_Day_6km'
         # currently hard coded, could add as parameters to support config file
-        modis_version = 6
+        modis_version = 61
         #        listing_site = 'e4ftl01.cr.usgs.gov'
         opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
         # opendap_path = 'opendap/hyrax/allData/'
@@ -746,7 +804,11 @@ def lambda_handler(event, context):
         data_element_id = input_json['data_element_id']
 
         #        modis_version_string = '{:03d}'.format(modis_version)
-        modis_version_string = '{:d}'.format(modis_version)
+        if "modis_version" in input_json:
+            modis_version_string = input_json['modis_version']
+        else:
+            modis_version_string = '{:d}'.format(modis_version)
+
         print("modis_version_string " + modis_version_string)
         product = input_json['product']
         var_name = input_json['var_name']
@@ -780,8 +842,14 @@ def lambda_handler(event, context):
 
         # print("all_dates ", all_dates)
         # exit(0)
-
-        filenames = get_filenames(listing_url, start_date, end_date, tiles)
+        try:
+            filenames = get_filenames(listing_url, start_date, end_date, tiles)
+        except Exception as e:
+            print("Network error: cannot get filename list")
+            update_status_on_s3(s3.Bucket(data_bucket), request_id, "aggregate", "failed",
+                            "OpenDap file list creation failed: ",
+                            creation_time=creation_time_in, date_range=date_range_in, dataset=dataset)
+            sys.exit(-1)
 
         update_status_on_s3(s3.Bucket(data_bucket), request_id,
                             "aggregate", "working", "Constructing OpenDAP URLs",

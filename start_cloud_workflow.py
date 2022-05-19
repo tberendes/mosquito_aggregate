@@ -122,6 +122,11 @@ def lambda_handler(event, context):
         downloadJson["auth_name"] = event["auth_name"]
     if 'auth_pw' in event:
         downloadJson["auth_pw"] = event["auth_pw"]
+    if 'hv_tilelist' in event:
+        downloadJson["hv_tilelist"] = event["hv_tilelist"] # i.e. [[20,11],[20,10]]  modis h,v sinusoidal tile indices
+    if 'modis_version' in event:
+        downloadJson["modis_version"] = event["modis_version"] # version of MODIS file used in OpenDap links (i.e. "61" for 6.1)
+
     download_param_pathname = ""
     if dataset.lower() == 'precipitation' or dataset.lower() == 'temperature' \
             or dataset.lower() == 'vegetation':
