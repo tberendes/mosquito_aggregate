@@ -127,10 +127,21 @@ def lambda_handler(event, context):
     if 'modis_version' in event:
         downloadJson["modis_version"] = event["modis_version"] # version of MODIS file used in OpenDap links (i.e. "61" for 6.1)
 
+    use_opendap = False
+    if 'use_opendap' in event:
+        downloadJson["use_opendap"] = event["use_opendap"] # flag used for IMERG to use opendap download process
+        if downloadJson["use_opendap"]:  # flag used for IMERG to use opendap download process
+            use_opendap = True
+        else:
+            use_opendap = False
+
     download_param_pathname = ""
     if dataset.lower() == 'precipitation' or dataset.lower() == 'temperature' \
             or dataset.lower() == 'vegetation':
-        download_param_pathname="requests/download/"+dataset+ "/"
+        if use_opendap:
+            download_param_pathname="requests/opendap/"+dataset+ "/"
+        else:
+            download_param_pathname="requests/download/"+dataset+ "/"
         #set up download_imerg data
     else:
         return dict(statusCode='200', headers={'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',

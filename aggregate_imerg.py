@@ -2,7 +2,7 @@
 #
 #  aggregate_imerg.py
 #
-#  Description: as the file name suggests this script reads data from an subsetted IMERG Day granule, formatted in netCDF
+#  Description: as the file name suggests this script reads data from a subsetted IMERG Day granule, formatted in netCDF
 #               and parses out the values based on geographic polygons (districts) and generates a JSON return
 #               of mean and median values at a district level
 #
