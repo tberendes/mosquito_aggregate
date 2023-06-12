@@ -785,7 +785,9 @@ def lambda_handler(event, context):
         #        listing_site = 'e4ftl01.cr.usgs.gov'
         opendap_site = 'ladsweb.modaps.eosdis.nasa.gov'
         # opendap_path = 'opendap/hyrax/allData/'
-        opendap_path = 'opendap/allData'
+        # changed path 2/16/23
+        #opendap_path = 'opendap/allData'
+        opendap_path = 'opendap/RemoteResources/laads/allData'
 
         if "stat_type" in input_json:
             statType = input_json['stat_type']

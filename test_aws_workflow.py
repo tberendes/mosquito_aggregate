@@ -29,7 +29,8 @@ def main():
     #payload = "sample_payload_modis_ndvi.json"
     #payload = "sample_payload_modis_temp.json"
     #payload = "test_aws_temp.json"
-    payload = "test_aws_imerg.json"
+    payload = "test_aws_ndvi.json"
+    #payload = "test_aws_imerg.json"
     #payload = "test_aws_imerg_opendap.json"
 
     with open(payload) as f:

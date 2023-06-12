@@ -127,7 +127,8 @@ def lambda_handler(event, context):
     if 'modis_version' in event:
         downloadJson["modis_version"] = event["modis_version"] # version of MODIS file used in OpenDap links (i.e. "61" for 6.1)
 
-    use_opendap = False
+    # changed default to True 2/16/23 after old service broke
+    use_opendap = True
     if 'use_opendap' in event:
         downloadJson["use_opendap"] = event["use_opendap"] # flag used for IMERG to use opendap download process
         if downloadJson["use_opendap"]:  # flag used for IMERG to use opendap download process

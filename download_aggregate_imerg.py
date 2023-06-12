@@ -449,13 +449,13 @@ def lambda_handler(event, context):
                                 creation_time=creation_time_in, date_range=date_range_in, dataset=input_dataset)
 
             url = file
-            session = setup_session(username=auth_name, password=auth_pw, check_url=url)
-            dataset = open_url(url, session=session)
-            # extract date from filename
-            #https://gpm1.gesdisc.eosdis.nasa.gov/opendap/hyrax/GPM_L3/GPM_3IMERGDF.06/2021/09/3B-DAY.MS.MRG.3IMERG.20210901-S000000-E235959.V06.nc4
             dateStr = file.split('/')[-1].split('-')[1].split('.')[4]
             fileJson = []
             try:
+                session = setup_session(username=auth_name, password=auth_pw, check_url=url)
+                dataset = open_url(url, session=session)
+                # extract date from filename
+                # https://gpm1.gesdisc.eosdis.nasa.gov/opendap/hyrax/GPM_L3/GPM_3IMERGDF.06/2021/09/3B-DAY.MS.MRG.3IMERG.20210901-S000000-E235959.V06.nc4
                 data_var = dataset[var_name][0, start_lon_ind:end_lon_ind, start_lat_ind:end_lat_ind].data  # time, lon, lat
                 #print(data_var.shape)
                 # nc = netCDF4.Dataset(url, **credentials)
@@ -511,6 +511,10 @@ def lambda_handler(event, context):
             except Exception as e:
                 print("Exception ", e)
                 print("Network error opening url ", url)
+                update_status_on_s3(s3.Bucket(data_bucket), request_id, "download", "failed",
+                                "Error reading file " + url,
+                                creation_time=creation_time_in, date_range=date_range_in, dataset=input_dataset)
+                exit(-1)
             fileCnt = fileCnt + 1
             for record in fileJson:
                 outputJson['dataValues'].append(record)
